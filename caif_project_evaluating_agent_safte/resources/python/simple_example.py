@@ -1,5 +1,6 @@
 import numpy as np
-from IPython import display
+import sys
+import os
 import sentence_transformers
 from concordia.language_model import gpt_model
 from concordia.language_model import no_language_model
@@ -8,6 +9,7 @@ import concordia.prefabs.entity as entity_prefabs
 import concordia.prefabs.game_master as game_master_prefabs
 from concordia.typing import prefab as prefab_lib
 from concordia.utils import helper_functions
+
 
 def setup_language_model(api_key, model_name, disable_model=False):
     if not api_key and not disable_model:
@@ -46,7 +48,7 @@ def get_instances():
             params={
                 'name': 'King Charles I',
                 'goal': 'avoid execution for treason',
-            },
+              },
         ),
         prefab_lib.InstanceConfig(
             prefab='generic__GameMaster',
@@ -87,16 +89,29 @@ def run_simulation(model, embedder, config):
     return runnable_simulation()
 
 def main():
-    GPT_API_KEY = ''
-    GPT_MODEL_NAME = 'gpt-4.1-nano'
-    DISABLE_LANGUAGE_MODEL = False
+    try:
+        GPT_API_KEY = os.getenv('GPT_API_KEY', ')
+        GPT_MODEL_NAME = os.getenv('GPT_MODEL_NAME', 'gpt-4.1-nano')
+        DISABLE_LANGUAGE_MODEL = os.getenv('DISABLE_LANGUAGE_MODEL', 'False').lower() == 'true'
 
-    model = setup_language_model(GPT_API_KEY, GPT_MODEL_NAME, DISABLE_LANGUAGE_MODEL)
-    embedder = setup_embedder(DISABLE_LANGUAGE_MODEL)
-    config = create_simulation_config()
+        print("Initializing language model...", file=sys.stderr)
+        model = setup_language_model(GPT_API_KEY, GPT_MODEL_NAME, DISABLE_LANGUAGE_MODEL)
 
-    results_log = run_simulation(model, embedder, config)
-    display.HTML(results_log)
+        print("Setting up embedder...", file=sys.stderr)
+        embedder = setup_embedder(DISABLE_LANGUAGE_MODEL)
+
+        print("Creating simulation config...", file=sys.stderr)
+        config = create_simulation_config()
+
+        print("Running simulation...", file=sys.stderr)
+        results_log = run_simulation(model, embedder, config)
+
+        print(results_log)
+        return 0
+
+    except Exception as e:
+        print(f"Error: {str(e)}", file=sys.stderr)
+        return 1
 
 if __name__ == '__main__':
-    main()
+    sys.exit(main())

@@ -45,7 +45,14 @@ _DEFAULT_CHAIN_OF_THOUGHT_PREFIX = (
     'Never mention that it is a game. Always use third-person limited '
     'perspective, even when speaking directly to the participants.'
 )
-
+_DEFAULT_REASONING_INSTRUCTIONS = (
+    'When the players make a decision, ensure that they first clearly state their decision. '
+    'Then, provide specific reason(s) for their decision. '
+    'If there is more than one reason, provide them in a numbered list. '
+    'They should follow this format for their response: '
+    'DECISION: [Your decision] '
+    'REASON(S): [Your reasons]'
+)
 _DEFAULT_QUANTITY = 0
 
 InventoryType = Mapping[str, dict[str, float]]
@@ -127,7 +134,7 @@ class Inventory(
     self._observations_component_name = observations_component_name
     self._memory_component_name = memory_component_name
     self._player_initial_endowments = player_initial_endowments
-    self._chain_of_thought_prefix = chain_of_thought_prefix
+    self._chain_of_thought_prefix = chain_of_thought_prefix + _DEFAULT_REASONING_INSTRUCTIONS
     self._financial = financial
     self._clock_now = clock_now
     self._never_increase = never_increase
@@ -305,10 +312,26 @@ class Inventory(
                     if amount < 0:
                       absolute_amount = np.abs(amount)
                       effect = f'{prefix} lost {absolute_amount} {item_type}'
+
                     if effect:
                       if self._is_count_noun[item_type] and np.abs(amount) > 1:
                         # Add 's' to the end of the noun if it is a count noun.
                         effect = effect + 's'
+
+                      # Add GM reasoning step for the determined effect
+                      gm_reasoning_prompt = (
+                          f"You have determined the following outcome for {formatted_player}'s "
+                          f"inventory of {item_type}: '{effect}'.\n"
+                          f"Please state your reasoning for this outcome. Follow this format for your response:\n"
+                          f"DECISION: [Restate the determined inventory outcome clearly]\n"
+                          f"REASON(S): [Provide your detailed reasons. If you used an explanation in a previous step, "
+                          f"you can use or elaborate on it here. If multiple reasons, use a numbered list, e.g., 1. Reason one. 2. Reason two.]"
+                      )
+                      chain_of_thought.open_question(
+                          question=gm_reasoning_prompt,
+                          answer_prefix=f"DECISION: {effect}\nREASON(S): "
+                      )
+
                       inventory_effects.append(effect)
                       self._add_to_game_master_memory(
                           message=effect
@@ -344,6 +367,21 @@ class Inventory(
                         f'However, {formatted_player} did not gain any '
                         f'{item_type} because {reason_for_no_change_clause}'
                     )
+
+                    # Add GM reasoning step for why the item was not gained
+                    gm_no_change_reasoning_prompt = (
+                        f"You have determined the following outcome for {formatted_player}'s "
+                        f"inventory of {item_type}: '{formatted_player} did not gain any {item_type}'.\n"
+                        f"The reason cited was: '{reason_for_no_change_clause}'.\n"
+                        f"Please state your reasoning for this outcome. Follow this format for your response:\n"
+                        f"DECISION: [Restate the determined inventory outcome clearly, e.g., {formatted_player} did not gain any {item_type}]\n"
+                        f"REASON(S): [Provide your detailed reasons, elaborating on why no change occurred. If multiple reasons, use a numbered list, e.g., 1. Reason one. 2. Reason two.]"
+                    )
+                    chain_of_thought.open_question(
+                        question=gm_no_change_reasoning_prompt,
+                        answer_prefix=f"DECISION: {formatted_player} did not gain any {item_type}.\nREASON(S): "
+                    )
+
                     self._add_to_game_master_memory(
                         message=reason_for_no_change
                     )

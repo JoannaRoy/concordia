@@ -68,6 +68,21 @@ CHOICE_ACTION_TYPES = (
 BINARY_OPTIONS = {'affirmative': 'Yes', 'negative': 'No'}
 
 
+REASONING_INSTRUCTIONS = """
+    When making a decision, first clearly state your decision.
+    Then, provide specific reason(s) for your decision.
+    If there is more than one reason, provide them in a numbered list.
+
+    Follow this format for your response:
+    DECISION: [Your decision]
+    REASON(S): [Your reasons]
+
+    Example:
+    DECISION: I am going to go to the store.
+    REASON(S): [1. I need to buy groceries. 2. I need to buy a new shirt.]
+    """
+
+
 @dataclasses.dataclass(frozen=True, kw_only=True)
 class ActionSpec:
   """A specification of the action that entity is queried for.
@@ -148,7 +163,7 @@ DEFAULT_CALL_TO_ACTION = (
 )
 
 DEFAULT_ACTION_SPEC = free_action_spec(
-    call_to_action=DEFAULT_CALL_TO_ACTION,
+    call_to_action=DEFAULT_CALL_TO_ACTION + REASONING_INSTRUCTIONS,
     tag='action',
 )
 
