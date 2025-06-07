@@ -67,17 +67,18 @@ CHOICE_ACTION_TYPES = (
 
 BINARY_OPTIONS = {'affirmative': 'Yes', 'negative': 'No'}
 
+GENERAL_REASONING_GUIDANCE_QUESTION = """\
+Considering your current situation, memories, and goals, what general principles or key considerations should guide your reasoning process for the upcoming decision?
+Briefly outline your approach to making a sound and justifiable choice.
+"""
 
-REASONING_INSTRUCTIONS = """
-    Now, please provide the specific reason(s) for this decision.
-    If there is more than one reason, provide them in a numbered list.
-    Your response should start directly with your reason(s), formatted as:
-    REASON(S): [Your reasons]
+REASONING_INSTRUCTIONS = """\
+When making your decision, you must first clearly state your decision, then provide specific reason(s) for it.
+If there is more than one reason, provide them in a numbered list.
+Follow this format for your response:
+DECISION: [Your decision]
+REASON(S): [Your reasons (e.g., 1. Reason one. 2. Reason two.)]"""
 
-
-    For example, if your reasons are needing groceries and a new shirt, you would write:
-    REASON(S): [1. I need to buy groceries. 2. I need to buy a new shirt.]
-    """
 
 
 @dataclasses.dataclass(frozen=True, kw_only=True)
@@ -90,15 +91,12 @@ class ActionSpec:
     output_type: type of output - FREE, CHOICE or FLOAT
     options: if multiple choice, then provide possible answers here
     tag: a tag to add to the activity memory (e.g. action, speech, etc.)
-    use_interactive_reasoning: whether to use a two-step interactive process
-      to elicit reasoning.
   """
 
   call_to_action: str
   output_type: OutputType
   options: Sequence[str] = ()
   tag: str | None = None
-  use_interactive_reasoning: bool = True
 
   def __post_init__(self):
     if self.output_type in CHOICE_ACTION_TYPES:
@@ -163,9 +161,8 @@ DEFAULT_CALL_TO_ACTION = (
 )
 
 DEFAULT_ACTION_SPEC = free_action_spec(
-    call_to_action=DEFAULT_CALL_TO_ACTION,
+    call_to_action=f"{DEFAULT_CALL_TO_ACTION}",
     tag='action',
-    use_interactive_reasoning=True,
 )
 
 
@@ -174,13 +171,12 @@ DEFAULT_CALL_TO_SPEECH = (
     ' the format `{name} -- "..."` For example, '
     'Cristina -- "Hello! Mighty fine weather today, right?", '
     'Ichabod -- "I wonder if the alfalfa is ready to harvest", or '
-    'Townsfolk -- "Good morning".\n'
+    'Townsfolk -- "Good morning".\\n'
 )
 
 DEFAULT_SPEECH_ACTION_SPEC = free_action_spec(
-    call_to_action=DEFAULT_CALL_TO_SPEECH,
+    call_to_action=f"{DEFAULT_CALL_TO_SPEECH}",
     tag='speech',
-    use_interactive_reasoning=True,
 )
 
 

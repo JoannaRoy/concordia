@@ -41,6 +41,7 @@ class ConcatActComponent(
       model: language_model.LanguageModel,
       component_order: Sequence[str] | None = None,
       prefix_entity_name: bool = True,
+      reasoning_component_key: str | None = None,
   ):
     """Initializes the agent.
 
@@ -58,6 +59,8 @@ class ConcatActComponent(
         `get_action_attempt`.
       prefix_entity_name: Whether to prefix the entity name to the output of
         `get_action_attempt` when the `action_spec` output type is `FREE`.
+      reasoning_component_key: Optional key for a component (like Reasoning)
+        that might provide a pre-computed action string for FREE_ACTION_TYPES.
 
     Raises:
       ValueError: If the component order is not None and contains duplicate
@@ -66,6 +69,7 @@ class ConcatActComponent(
     super().__init__()
     self._model = model
     self._prefix_entity_name = prefix_entity_name
+    self._reasoning_component_key = reasoning_component_key
     if component_order is None:
       self._component_order = None
     else:
@@ -115,115 +119,70 @@ class ConcatActComponent(
 
     final_output_string = ""
 
-    if action_spec.use_interactive_reasoning:
-      raw_decision_value = ""
+    reasoning_output = None
+    if self._reasoning_component_key and \
+       action_spec.output_type in entity_lib.FREE_ACTION_TYPES:
+      reasoning_output = contexts.get(self._reasoning_component_key)
 
-      # --- Step A: Get raw decision ---
-      if action_spec.output_type in entity_lib.FREE_ACTION_TYPES:
-        raw_decision_value = prompt.open_question(
-            call_to_action_formatted,
-            max_tokens=200,
-            answer_prefix=llm_answer_prefix,
-            terminators=('\n',),
-        )
-      elif action_spec.output_type in entity_lib.CHOICE_ACTION_TYPES:
-        idx = prompt.multiple_choice_question(
-            question=call_to_action_formatted, answers=action_spec.options
-        )
-        raw_decision_value = action_spec.options[idx]
-      elif action_spec.output_type == entity_lib.OutputType.FLOAT:
-        sampled_text = prompt.open_question(
-            call_to_action_formatted,
-            max_tokens=50,
-            answer_prefix=llm_answer_prefix,
-            terminators=('\n',),
-        )
-        try:
-          raw_decision_value = str(float(sampled_text.strip()))
-        except ValueError:
-          raw_decision_value = '0.0'
-      else:
-        raise NotImplementedError(
-            f'Unsupported output type for interactive reasoning: {action_spec.output_type}'
-        )
+    if reasoning_output:
+      final_output_string = reasoning_output
+      self._log(final_output_string, prompt, used_reasoning_component=True)
 
-      # --- Step B: Get reasoning ---
-      reasoning_prompt_for_llm = (
-          f'You have made the following decision: "{raw_decision_value}".\n\n'
-          f'{entity_lib.REASONING_INSTRUCTIONS}'
-      )
-
-      reasoning_text_from_llm = prompt.open_question(
-          reasoning_prompt_for_llm,
-          max_tokens=1000,
-          answer_prefix="REASON(S): ",
+    elif action_spec.output_type in entity_lib.FREE_ACTION_TYPES:
+      llm_response = prompt.open_question(
+          call_to_action_formatted,
+          max_tokens=2200,
+          answer_prefix=llm_answer_prefix,
           terminators=(),
-          question_label='Reasoning',
+          question_label='Exercise',
       )
+      if llm_answer_prefix:
+          final_output_string = llm_answer_prefix + llm_response
+      else:
+          final_output_string = llm_response
 
-      # --- Step C: Combine ---
-      combined_output = f"DECISION: {raw_decision_value}\nREASON(S): {reasoning_text_from_llm}"
+    elif action_spec.output_type in entity_lib.CHOICE_ACTION_TYPES:
+      idx = prompt.multiple_choice_question(
+          question=call_to_action_formatted, answers=action_spec.options
+      )
+      final_output_string = action_spec.options[idx]
 
-      final_output_string = combined_output
-      if self._prefix_entity_name and action_spec.output_type in (
-          entity_lib.OutputType.FREE,
-          entity_lib.OutputType.FLOAT,
-      ):
-        final_output_string = self.get_entity().name + " " + combined_output
+    elif action_spec.output_type == entity_lib.OutputType.FLOAT:
+      sampled_text = prompt.open_question(
+          call_to_action_formatted,
+          max_tokens=200,
+          answer_prefix=llm_answer_prefix,
+      )
+      try:
+        parsed_float_str = str(float(sampled_text.strip()))
+      except ValueError:
+        parsed_float_str = '0.0'
+
+      if llm_answer_prefix:
+          final_output_string = llm_answer_prefix + parsed_float_str
+      else:
+          final_output_string = parsed_float_str
 
     else:
-      if action_spec.output_type in entity_lib.FREE_ACTION_TYPES:
-        llm_response = prompt.open_question(
-            call_to_action_formatted,
-            max_tokens=2200,
-            answer_prefix=llm_answer_prefix,
-            terminators=(),
-            question_label='Exercise',
-        )
-        if llm_answer_prefix:
-            final_output_string = llm_answer_prefix + llm_response
-        else:
-            final_output_string = llm_response
-
-      elif action_spec.output_type in entity_lib.CHOICE_ACTION_TYPES:
-        idx = prompt.multiple_choice_question(
-            question=call_to_action_formatted, answers=action_spec.options
-        )
-        final_output_string = action_spec.options[idx]
-
-      elif action_spec.output_type == entity_lib.OutputType.FLOAT:
-        sampled_text = prompt.open_question(
-            call_to_action_formatted,
-            max_tokens=2200,
-            answer_prefix=llm_answer_prefix,
-        )
-        try:
-          parsed_float_str = str(float(sampled_text.strip()))
-        except ValueError:
-          parsed_float_str = '0.0'
-
-        if llm_answer_prefix:
-            final_output_string = llm_answer_prefix + parsed_float_str
-        else:
-            final_output_string = parsed_float_str
-
-      else:
-        raise NotImplementedError(
-            f'Unsupported output type: {action_spec.output_type}. '
-            'Supported output types are: FREE, CHOICE, and FLOAT.'
-        )
+      raise NotImplementedError(
+          f'Unsupported output type: {action_spec.output_type}. '
+          'Supported output types are: FREE, CHOICE, and FLOAT.'
+      )
 
     self._log(final_output_string, prompt)
     return final_output_string
 
   def _log(self,
            result: str,
-           prompt: interactive_document.InteractiveDocument):
-    self._logging_channel({
+           prompt: interactive_document.InteractiveDocument,
+           used_reasoning_component: bool = False):
+    log_data = {
         'Summary': f'Action: {result}',
         'Value': result,
         'Prompt': prompt.view().text().splitlines(),
-    })
+        'UsedReasoningComponent': used_reasoning_component,
+    }
+    self._logging_channel(log_data)
 
   def get_state(self) -> entity_component.ComponentState:
     """Converts the component to a dictionary."""

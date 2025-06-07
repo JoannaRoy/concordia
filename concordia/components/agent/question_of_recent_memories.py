@@ -16,6 +16,8 @@
 
 from collections.abc import Callable, Collection, Sequence
 import datetime
+import json
+import re
 
 from concordia.components.agent import action_spec_ignored
 from concordia.components.agent import memory as memory_component
@@ -23,6 +25,7 @@ from concordia.document import interactive_document
 from concordia.language_model import language_model
 from concordia.typing import entity as entity_lib
 from concordia.typing import entity_component
+from concordia.typing.entity import REASONING_INSTRUCTIONS
 
 
 SELF_PERCEPTION_QUESTION = (
@@ -365,3 +368,146 @@ class BestOptionPerceptionWithoutPreAct(QuestionOfRecentMemoriesWithoutPreAct):
         add_to_memory=False,
         **kwargs,
     )
+
+class Reasoning(QuestionOfRecentMemories):
+  """This component generates a structured decision and reasoning for free-form actions."""
+
+  def __init__(self,
+               model: language_model.LanguageModel,
+               reasoning_log_file: str | None = None,
+               **kwargs):
+    # Default pre_act_label for this component
+    default_pre_act_label = '\nReasoned Action and Justification:'
+    if kwargs.get('pre_act_label') is None:
+      kwargs['pre_act_label'] = default_pre_act_label
+
+    question_text = entity_lib.GENERAL_REASONING_GUIDANCE_QUESTION
+
+    self._reasoning_log_file = reasoning_log_file
+
+    super().__init__(
+        model=model,
+        question=question_text,
+        answer_prefix='',
+        add_to_memory=False,
+        **kwargs,
+    )
+
+  # Override pre_act to gain access to action_spec and to conditionally act.
+  def pre_act(
+      self,
+      action_spec: entity_lib.ActionSpec,
+  ) -> str:
+    # --- Step 0: Conditional Execution ---
+    if action_spec.output_type not in entity_lib.FREE_ACTION_TYPES:
+      self._logging_channel({
+          'Key': self.get_pre_act_label(),
+          'Action Type': action_spec.output_type.name,
+          'Skipped': True,
+          'Summary': 'Action type not FREE_ACTION_TYPE, Reasoning component returning empty.',
+          'Chain of thought': [],
+      })
+      return ''
+
+    # --- Step 1: Get General Guidance ---
+    general_guidance_text = self._make_pre_act_value()
+    agent_name = self.get_entity().name
+
+    # --- Step 2: Specific Decision with REASONING_INSTRUCTIONS ---
+    decision_prompt = interactive_document.InteractiveDocument(self._model)
+    decision_prompt.statement(f"General reasoning guidance for {agent_name}: {general_guidance_text}")
+
+    call_to_action_for_decision = action_spec.call_to_action.format(name=agent_name)
+    final_call_to_action_prompt_text = (
+        f'{call_to_action_for_decision}\\n\\n{REASONING_INSTRUCTIONS}'
+    )
+
+    decision_answer_prefix = f'{agent_name} '
+    decision_output_text_from_llm = decision_prompt.open_question(
+        final_call_to_action_prompt_text,
+        answer_prefix=decision_answer_prefix,
+        max_tokens=2200,
+        terminators=(),
+    )
+    final_decision_output_string = decision_answer_prefix + decision_output_text_from_llm
+
+    # --- Step 3: Logging for the second (decision) step (existing verbose log) ---
+    current_time_str = str(self._clock_now()) if self._clock_now else ''
+    log_entry = {
+        'Key': f'{self.get_pre_act_label()} - Decision Step',
+        'Action Type': action_spec.output_type.name,
+        'Skipped': False,
+        'Input General Guidance': general_guidance_text,
+        'Specific Action Call (with REASONING_INSTRUCTIONS)': final_call_to_action_prompt_text,
+        'LLM Call for Decision (question)': final_call_to_action_prompt_text,
+        'LLM Call for Decision (answer_prefix)': decision_answer_prefix,
+        'LLM Call for Decision (raw_output)': decision_output_text_from_llm,
+        'Returned Action String': final_decision_output_string,
+        'Chain of thought (Decision Step)': decision_prompt.view().text().splitlines(),
+    }
+    if current_time_str:
+      log_entry['Time'] = current_time_str
+    self._logging_channel(log_entry)
+
+    # --- Step 4: Write structured data to JSON Lines file ---
+    if self._reasoning_log_file:
+      self._log_structured_reasoning_to_file(
+          agent_name,
+          current_time_str,
+          general_guidance_text,
+          call_to_action_for_decision,
+          decision_output_text_from_llm
+      )
+
+    return final_decision_output_string
+
+  def _log_structured_reasoning_to_file(
+      self,
+      agent_name: str,
+      current_time_str: str,
+      general_guidance_text: str,
+      action_query: str,
+      raw_llm_decision_output: str
+  ):
+    """Helper function to parse and log structured reasoning to a JSONL file."""
+    try:
+        decision = raw_llm_decision_output.split('DECISION:')[1]
+
+        reasons_text = raw_llm_decision_output.split('REASON(S):')[1]
+        reasons = [r.strip() for r in re.split(r'\d+\.', reasons_text) if r.strip()]
+
+        json_log_data = {
+            'agent_name': agent_name,
+            'timestamp': current_time_str if current_time_str else None,
+            'general_guidance': general_guidance_text,
+            'action_query': action_query,
+            'decision': decision,
+            'reasons': reasons,
+        }
+        with open(self._reasoning_log_file, 'a', encoding='utf-8') as f:
+            f.write(json.dumps(json_log_data) + '\n')
+    except Exception as e:
+        # Log an error if writing to JSONL fails, but don't crash the simulation
+        # Construct json_log_data for the error log, handling if it wasn't fully formed before error
+        error_data_payload = {}
+        if 'json_log_data' in locals() and isinstance(json_log_data, dict):
+            error_data_payload = json_log_data
+        else: # If json_log_data wasn't formed, include what we have
+            error_data_payload = {
+                'agent_name': agent_name,
+                'timestamp': current_time_str if current_time_str else None,
+                'general_guidance': general_guidance_text,
+                'action_query': action_query,
+                'raw_llm_decision_output': raw_llm_decision_output,
+                'parsing_error_encountered_before_full_data_construct': True
+            }
+
+        error_log_entry = {
+            'Key': f'{self.get_pre_act_label()} - JSONL Write Error',
+            'Error': str(e),
+            'DataAttempted': error_data_payload,
+        }
+        if current_time_str:
+            error_log_entry['Time'] = current_time_str
+        self._logging_channel(error_log_entry)
+        print(f"Error writing to reasoning log file {self._reasoning_log_file}: {e}")

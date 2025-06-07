@@ -122,6 +122,12 @@ class Entity(prefab_lib.Prefab):
         )
     )
 
+    reasoning_key = 'Reasoning'
+    reasoning = agent_components.question_of_recent_memories.Reasoning(
+        model=model,
+        pre_act_label='\nReasoning',
+    )
+
     if entity_goal:
       goal_key = 'Goal'
       overarching_goal = agent_components.constant.Constant(
@@ -148,6 +154,7 @@ class Entity(prefab_lib.Prefab):
         instructions_key: instructions,
         observation_to_memory_key: observation_to_memory,
         relevant_memories_key: relevant_memories,
+        reasoning_key: reasoning,
         self_perception_key: self_perception,
         situation_perception_key: situation_perception,
         person_by_situation_key: person_by_situation,

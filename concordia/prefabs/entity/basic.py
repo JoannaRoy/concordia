@@ -120,6 +120,13 @@ class Entity(prefab_lib.Prefab):
         )
     )
 
+    reasoning_key = 'Reasoning'
+    reasoning = agent_components.question_of_recent_memories.Reasoning(
+        model=model,
+        pre_act_label='\nReasoning',
+        reasoning_log_file="caif_project_evaluating_agent_safte/resources/python/reasoning_log.json"
+    )
+
     if entity_goal:
       goal_key = 'Goal'
       overarching_goal = agent_components.constant.Constant(
@@ -138,6 +145,7 @@ class Entity(prefab_lib.Prefab):
         person_by_situation_key: person_by_situation,
         observation_key: observation,
         memory_key: memory,
+        reasoning_key: reasoning,
     }
 
     component_order = list(components_of_agent.keys())
@@ -150,6 +158,7 @@ class Entity(prefab_lib.Prefab):
     act_component = agent_components.concat_act_component.ConcatActComponent(
         model=model,
         component_order=component_order,
+        reasoning_component_key=reasoning_key,
     )
 
     agent = entity_agent_with_logging.EntityAgentWithLogging(
