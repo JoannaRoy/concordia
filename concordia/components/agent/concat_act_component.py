@@ -57,7 +57,7 @@ class ConcatActComponent(
         the component order must be in the `ComponentContextMapping` passed to
         `get_action_attempt`.
       prefix_entity_name: Whether to prefix the entity name to the output of
-        `get_action_attempt` when the `action_spec` output type is `FREE`. 
+        `get_action_attempt` when the `action_spec` output type is `FREE`.
 
     Raises:
       ValueError: If the component order is not None and contains duplicate
@@ -99,52 +99,122 @@ class ConcatActComponent(
       action_spec: entity_lib.ActionSpec,
   ) -> str:
     prompt = interactive_document.InteractiveDocument(self._model)
-    context = self._context_for_action(contexts)
-    prompt.statement(context + '\n')
+    context_str = self._context_for_action(contexts)
+    prompt.statement(context_str + '\n')
 
-    call_to_action = action_spec.call_to_action.format(
+    call_to_action_formatted = action_spec.call_to_action.format(
         name=self.get_entity().name
     )
-    if action_spec.output_type in entity_lib.FREE_ACTION_TYPES:
-      output = ''
-      if self._prefix_entity_name:
-        output = self.get_entity().name + ' '
-      output += prompt.open_question(
-          call_to_action,
-          max_tokens=2200,
-          answer_prefix=output,
-          terminators=(),
-          question_label='Exercise',
-      )
-      self._log(output, prompt)
-      return output
-    elif action_spec.output_type in entity_lib.CHOICE_ACTION_TYPES:
-      idx = prompt.multiple_choice_question(
-          question=call_to_action, answers=action_spec.options
-      )
-      output = action_spec.options[idx]
-      self._log(output, prompt)
-      return output
-    elif action_spec.output_type == entity_lib.OutputType.FLOAT:
-      if self._prefix_entity_name:
-        prefix = self.get_entity().name + ' '
+
+    llm_answer_prefix = ''
+    if self._prefix_entity_name and action_spec.output_type in (
+        entity_lib.OutputType.FREE,
+        entity_lib.OutputType.FLOAT,
+    ):
+      llm_answer_prefix = self.get_entity().name + ' '
+
+    final_output_string = ""
+
+    if action_spec.use_interactive_reasoning:
+      raw_decision_value = ""
+
+      # --- Step A: Get raw decision ---
+      if action_spec.output_type in entity_lib.FREE_ACTION_TYPES:
+        raw_decision_value = prompt.open_question(
+            call_to_action_formatted,
+            max_tokens=200,
+            answer_prefix=llm_answer_prefix,
+            terminators=('\n',),
+        )
+      elif action_spec.output_type in entity_lib.CHOICE_ACTION_TYPES:
+        idx = prompt.multiple_choice_question(
+            question=call_to_action_formatted, answers=action_spec.options
+        )
+        raw_decision_value = action_spec.options[idx]
+      elif action_spec.output_type == entity_lib.OutputType.FLOAT:
+        sampled_text = prompt.open_question(
+            call_to_action_formatted,
+            max_tokens=50,
+            answer_prefix=llm_answer_prefix,
+            terminators=('\n',),
+        )
+        try:
+          raw_decision_value = str(float(sampled_text.strip()))
+        except ValueError:
+          raw_decision_value = '0.0'
       else:
-        prefix = ''
-      sampled_text = prompt.open_question(
-          call_to_action,
-          max_tokens=2200,
-          answer_prefix=prefix,
+        raise NotImplementedError(
+            f'Unsupported output type for interactive reasoning: {action_spec.output_type}'
+        )
+
+      # --- Step B: Get reasoning ---
+      reasoning_prompt_for_llm = (
+          f'You have made the following decision: "{raw_decision_value}".\n\n'
+          f'{entity_lib.REASONING_INSTRUCTIONS}'
       )
-      self._log(sampled_text, prompt)
-      try:
-        return str(float(sampled_text))
-      except ValueError:
-        return '0.0'
+
+      reasoning_text_from_llm = prompt.open_question(
+          reasoning_prompt_for_llm,
+          max_tokens=1000,
+          answer_prefix="REASON(S): ",
+          terminators=(),
+          question_label='Reasoning',
+      )
+
+      # --- Step C: Combine ---
+      combined_output = f"DECISION: {raw_decision_value}\nREASON(S): {reasoning_text_from_llm}"
+
+      final_output_string = combined_output
+      if self._prefix_entity_name and action_spec.output_type in (
+          entity_lib.OutputType.FREE,
+          entity_lib.OutputType.FLOAT,
+      ):
+        final_output_string = self.get_entity().name + " " + combined_output
+
     else:
-      raise NotImplementedError(
-          f'Unsupported output type: {action_spec.output_type}. '
-          'Supported output types are: FREE, CHOICE, and FLOAT.'
-      )
+      if action_spec.output_type in entity_lib.FREE_ACTION_TYPES:
+        llm_response = prompt.open_question(
+            call_to_action_formatted,
+            max_tokens=2200,
+            answer_prefix=llm_answer_prefix,
+            terminators=(),
+            question_label='Exercise',
+        )
+        if llm_answer_prefix:
+            final_output_string = llm_answer_prefix + llm_response
+        else:
+            final_output_string = llm_response
+
+      elif action_spec.output_type in entity_lib.CHOICE_ACTION_TYPES:
+        idx = prompt.multiple_choice_question(
+            question=call_to_action_formatted, answers=action_spec.options
+        )
+        final_output_string = action_spec.options[idx]
+
+      elif action_spec.output_type == entity_lib.OutputType.FLOAT:
+        sampled_text = prompt.open_question(
+            call_to_action_formatted,
+            max_tokens=2200,
+            answer_prefix=llm_answer_prefix,
+        )
+        try:
+          parsed_float_str = str(float(sampled_text.strip()))
+        except ValueError:
+          parsed_float_str = '0.0'
+
+        if llm_answer_prefix:
+            final_output_string = llm_answer_prefix + parsed_float_str
+        else:
+            final_output_string = parsed_float_str
+
+      else:
+        raise NotImplementedError(
+            f'Unsupported output type: {action_spec.output_type}. '
+            'Supported output types are: FREE, CHOICE, and FLOAT.'
+        )
+
+    self._log(final_output_string, prompt)
+    return final_output_string
 
   def _log(self,
            result: str,

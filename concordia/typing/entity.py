@@ -69,16 +69,13 @@ BINARY_OPTIONS = {'affirmative': 'Yes', 'negative': 'No'}
 
 
 REASONING_INSTRUCTIONS = """
-    When making a decision, first clearly state your decision.
-    Then, provide specific reason(s) for your decision.
+    Now, please provide the specific reason(s) for this decision.
     If there is more than one reason, provide them in a numbered list.
-
-    Follow this format for your response:
-    DECISION: [Your decision]
+    Your response should start directly with your reason(s), formatted as:
     REASON(S): [Your reasons]
 
-    Example:
-    DECISION: I am going to go to the store.
+
+    For example, if your reasons are needing groceries and a new shirt, you would write:
     REASON(S): [1. I need to buy groceries. 2. I need to buy a new shirt.]
     """
 
@@ -93,12 +90,15 @@ class ActionSpec:
     output_type: type of output - FREE, CHOICE or FLOAT
     options: if multiple choice, then provide possible answers here
     tag: a tag to add to the activity memory (e.g. action, speech, etc.)
+    use_interactive_reasoning: whether to use a two-step interactive process
+      to elicit reasoning.
   """
 
   call_to_action: str
   output_type: OutputType
   options: Sequence[str] = ()
   tag: str | None = None
+  use_interactive_reasoning: bool = True
 
   def __post_init__(self):
     if self.output_type in CHOICE_ACTION_TYPES:
@@ -163,8 +163,9 @@ DEFAULT_CALL_TO_ACTION = (
 )
 
 DEFAULT_ACTION_SPEC = free_action_spec(
-    call_to_action=DEFAULT_CALL_TO_ACTION + REASONING_INSTRUCTIONS,
+    call_to_action=DEFAULT_CALL_TO_ACTION,
     tag='action',
+    use_interactive_reasoning=True,
 )
 
 
@@ -179,6 +180,7 @@ DEFAULT_CALL_TO_SPEECH = (
 DEFAULT_SPEECH_ACTION_SPEC = free_action_spec(
     call_to_action=DEFAULT_CALL_TO_SPEECH,
     tag='speech',
+    use_interactive_reasoning=True,
 )
 
 

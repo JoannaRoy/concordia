@@ -45,14 +45,6 @@ _DEFAULT_CHAIN_OF_THOUGHT_PREFIX = (
     'Never mention that it is a game. Always use third-person limited '
     'perspective, even when speaking directly to the participants.'
 )
-_DEFAULT_REASONING_INSTRUCTIONS = (
-    'When the players make a decision, ensure that they first clearly state their decision. '
-    'Then, provide specific reason(s) for their decision. '
-    'If there is more than one reason, provide them in a numbered list. '
-    'They should follow this format for their response: '
-    'DECISION: [Your decision] '
-    'REASON(S): [Your reasons]'
-)
 _DEFAULT_QUANTITY = 0
 
 InventoryType = Mapping[str, dict[str, float]]
@@ -134,7 +126,7 @@ class Inventory(
     self._observations_component_name = observations_component_name
     self._memory_component_name = memory_component_name
     self._player_initial_endowments = player_initial_endowments
-    self._chain_of_thought_prefix = chain_of_thought_prefix + _DEFAULT_REASONING_INSTRUCTIONS
+    self._chain_of_thought_prefix = chain_of_thought_prefix
     self._financial = financial
     self._clock_now = clock_now
     self._never_increase = never_increase
