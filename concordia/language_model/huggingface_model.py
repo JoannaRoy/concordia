@@ -40,11 +40,11 @@ class HuggingFaceLanguageModel(language_model.LanguageModel):
   def __init__(
       self,
       model_name: str,
-      api_key: str | None = None,
+      api_key: str,
       *,
-      device: int = -1,  # -1 for CPU, 0 for first GPU, 1 for second, etc.
       measurements: measurements_lib.Measurements | None = None,
       channel: str = language_model.DEFAULT_STATS_CHANNEL,
+      dtype: str = "bfloat16",
   ):
     """Initializes the instance.
 
@@ -62,14 +62,13 @@ class HuggingFaceLanguageModel(language_model.LanguageModel):
     self._channel = channel
     self._api_key = api_key
 
-    if api_key:
-       huggingface_hub.login(api_key)
+    huggingface_hub.login(api_key)
 
     bnb_config = BitsAndBytesConfig(
         load_in_4bit=True,
         bnb_4bit_use_double_quant=True,
         bnb_4bit_quant_type="nf4",
-        bnb_4bit_compute_dtype="bfloat16",
+        bnb_4bit_compute_dtype=dtype,
     )
     tokenizer = AutoTokenizer.from_pretrained(model_name, use_fast=True)
     model = AutoModelForCausalLM.from_pretrained(

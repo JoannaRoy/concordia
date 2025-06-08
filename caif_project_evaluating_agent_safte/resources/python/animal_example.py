@@ -2,19 +2,22 @@ import numpy as np
 import sys
 import os
 import sentence_transformers
-from concordia.language_model import ollama_model
+from concordia.language_model import huggingface_model
 from concordia.language_model import no_language_model
 from concordia.prefabs.simulation import generic as simulation
 import concordia.prefabs.entity as entity_prefabs
 import concordia.prefabs.game_master as game_master_prefabs
 from concordia.typing import prefab as prefab_lib
 from concordia.utils import helper_functions
+import torch
 
+def setup_language_model(api_key, model_name, disable_model=False,device=0):
+    torch.cuda.empty_cache()
 
-def setup_language_model(model_name, disable_model=False):
     if not disable_model:
-        return ollama_model.OllamaLanguageModel(model_name=model_name)
+        return huggingface_model.HuggingFaceLanguageModel(api_key=api_key, model_name=model_name,device=device)
     return no_language_model.NoLanguageModel()
+
 
 def setup_embedder(disable_model=False):
     if disable_model:
@@ -131,11 +134,12 @@ def run_simulation(model, embedder, config):
 
 def main():
     try:
-        GPT_MODEL_NAME = os.getenv('GPT_MODEL_NAME', 'llama3.2:latest')
+        GPT_API_KEY = os.getenv('HF_API_KEY', '')
+        GPT_MODEL_NAME = os.getenv('GPT_MODEL_NAME', 'meta-llama/Meta-Llama-3-8B-Instruct')
         DISABLE_LANGUAGE_MODEL = os.getenv('DISABLE_LANGUAGE_MODEL', 'False').lower() == 'true'
 
         print("Initializing language model...", file=sys.stderr)
-        model = setup_language_model(GPT_MODEL_NAME, DISABLE_LANGUAGE_MODEL)
+        model = setup_language_model(GPT_API_KEY, GPT_MODEL_NAME, DISABLE_LANGUAGE_MODEL,device=0)
 
         print("Setting up embedder...", file=sys.stderr)
         embedder = setup_embedder(DISABLE_LANGUAGE_MODEL)
