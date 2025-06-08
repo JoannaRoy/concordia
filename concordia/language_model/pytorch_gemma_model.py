@@ -23,6 +23,7 @@ from concordia.utils.deprecated import measurements as measurements_lib
 import numpy as np
 import transformers
 from typing_extensions import override
+from typing import Any, Optional
 
 
 class PyTorchGemmaLanguageModel(language_model.LanguageModel):
@@ -73,7 +74,7 @@ class PyTorchGemmaLanguageModel(language_model.LanguageModel):
       temperature: float = language_model.DEFAULT_TEMPERATURE,
       timeout: float = language_model.DEFAULT_TIMEOUT_SECONDS,
       seed: int | None = None,
-  ) -> str:
+  ) -> tuple[str, Optional[Any]]:
     del temperature, timeout, seed  # Unused.
 
     prompt_with_system_message = f'{self._text_system_message}\n\n{prompt}'
@@ -104,7 +105,7 @@ class PyTorchGemmaLanguageModel(language_model.LanguageModel):
       self._measurements.publish_datum(
           self._channel, {'raw_text_length': len(response)}
       )
-    return response
+    return response, generated_tokens.scores
 
   @override
   def sample_choice(

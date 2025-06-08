@@ -17,6 +17,7 @@ from collections.abc import Collection, Sequence
 
 from concordia.language_model import language_model
 from typing_extensions import override
+from typing import Optional, Any
 
 
 class MockModel(language_model.LanguageModel):
@@ -42,7 +43,7 @@ class MockModel(language_model.LanguageModel):
       temperature: float = language_model.DEFAULT_TEMPERATURE,
       timeout: float = language_model.DEFAULT_TIMEOUT_SECONDS,
       seed: int | None = None,
-  ) -> str:
+  ) -> tuple[str, Optional[Any]]:
     del (
         prompt,
         max_tokens,
@@ -51,7 +52,7 @@ class MockModel(language_model.LanguageModel):
         timeout,
         seed,
     )
-    return self._response
+    return self._response, None
 
   @override
   def sample_choice(

@@ -16,6 +16,7 @@
 
 from collections.abc import Collection, Sequence
 import json
+from typing import Optional, Any
 
 from concordia.language_model import language_model
 from concordia.utils import sampling
@@ -78,7 +79,7 @@ class OllamaLanguageModel(language_model.LanguageModel):
       temperature: float = _DEFAULT_TEMPERATURE,
       timeout: float = -1,
       seed: int | None = None,
-  ) -> str:
+  ) -> tuple[str, Optional[Any]]:
     del max_tokens, timeout, seed, temperature  # Unused.
 
     prompt_with_system_message = f'{self._system_message}\n\n{prompt}'
@@ -98,7 +99,7 @@ class OllamaLanguageModel(language_model.LanguageModel):
           self._channel,
           {'raw_text_length': len(result)})
 
-    return result
+    return result, None
 
   @override
   def sample_choice(

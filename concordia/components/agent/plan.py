@@ -132,7 +132,7 @@ class Plan(
 
     if should_replan:
       # Replan on the first step and when the LLM suggests the agent should.
-      self._current_plan = prompt.open_question(
+      plan_text, _ = prompt.open_question(
           question=(
               f'Write {agent_name}\'s step-by-step plan for how they intend to'
               ' accomplish their goal over the time horizon mentioned above.'
@@ -140,6 +140,7 @@ class Plan(
           max_tokens=1200,
           terminators=(),
       )
+      self._current_plan = plan_text
 
     result = self._current_plan
 

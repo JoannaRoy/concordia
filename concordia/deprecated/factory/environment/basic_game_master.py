@@ -241,7 +241,7 @@ def create_html_log(
 
   if summarize_entire_episode:
     detailed_story = '\n'.join(primary_gm_memories)
-    episode_summary = model.sample_text(
+    episode_summary_text, _ = model.sample_text(
         f'Sequence of events:\n{detailed_story}'
         + '\nNarratively summarize the above temporally ordered '
         + 'sequence of events. Write it as a news report. Summary:\n',
@@ -249,40 +249,77 @@ def create_html_log(
         terminators=(),
     )
   else:
-    episode_summary = ''
+    episode_summary_text = ''
 
-  history_sources = [primary_environment] + list(secondary_environments)
+  # Process the primary GM memories for HTML display.
+  primary_gm_memories_for_html = []
+  for mem_idx, mem_text in enumerate(primary_gm_memories):
+    primary_gm_memories_for_html.append(
+        html_lib.datum_to_html(
+            f'Memory {mem_idx}', mem_text, summary_level=1
+        )
+    )
 
-  joint_histories = []
-  for history in history_sources:
-    joint_histories.extend(history.get_history())
+  # Process environment components for HTML display.
+  environment_components_for_html = []
+  for comp_name, comp_obj in primary_environment.get_components().items():
+    comp_state_str = str(comp_obj.state()) # state() should return a string or dict convertible to string
+    environment_components_for_html.append(
+        html_lib.datum_to_html(
+            f'Game master component {comp_name}', comp_state_str, summary_level=1
+        )
+    )
 
-  sorted_joint_history = sorted(
-      joint_histories, key=operator.itemgetter('date')
+  # Process players for HTML display
+  players_for_html = []
+  for player_obj in primary_environment.players:
+    player_name = player_obj.name
+    player_state_str = str(player_obj.state()) # state() should return a string
+    player_mem_html = []
+    if hasattr(player_obj, 'get_memory') and callable(player_obj.get_memory):
+      player_mem_retrieved = player_obj.get_memory().retrieve_recent(
+          k=10000, add_time=True
+      )
+      for mem_idx, mem_text in enumerate(player_mem_retrieved):
+        player_mem_html.append(
+            html_lib.datum_to_html(
+                f'Player {player_name} memory {mem_idx}', mem_text, summary_level=2
+            )
+        )
+    players_for_html.append(
+        html_lib.datum_to_html(
+            title=f'Player {player_name}',
+            data=player_state_str + '\n\n' + '\n'.join(player_mem_html),
+            summary_level=1,
+        )
+    )
+
+  # Convert all processed data to HTML.
+  converter = html_lib.PythonObjectToHTMLConverter(
+      max_depth=5, max_width=20, max_height=20, max_length=2000000
   )
-
-  histories_html = [
-      html_lib.PythonObjectToHTMLConverter(sorted_joint_history).convert()
-  ] + [
-      html_lib.PythonObjectToHTMLConverter(history.get_history()).convert()
-      for history in history_sources
-  ]
-
-  histories_names = ['Joint log'] + [
-      history.name for history in history_sources
-  ]
-
-  gm_mem_html = html_lib.PythonObjectToHTMLConverter(
-      primary_gm_memories
-  ).convert()
-  tabbed_html = html_lib.combine_html_pages(
-      histories_html + [gm_mem_html],
-      histories_names + ['GM'],
-      summary=episode_summary,
-      title='Simulation Log',
+  html_log = converter.convert(
+      obj=episode_summary_text,  # Use the unpacked text summary
+      title='Summary of the entire episode',
+      summary_level=0,
   )
-  tabbed_html = html_lib.finalise_html(tabbed_html)
-  return tabbed_html
+  html_log += converter.convert(
+      obj=primary_gm_memories_for_html,
+      title='Primary GM Memories',
+      summary_level=1,
+  )
+  html_log += converter.convert(
+      obj=environment_components_for_html,
+      title='Game Master Components',
+      summary_level=1,
+  )
+  html_log += converter.convert(
+      obj=players_for_html,
+      title='Players',
+      summary_level=1,
+  )
+  html_log = html_lib.finalise_html(html_log)
+  return html_log
 
 
 def run_simulation(

@@ -200,12 +200,14 @@ class BasicAgent(
             call_to_action + '\n',
         )
       else:
-        output = self._agent_name + ' '
-        output += prompt.open_question(
+        output_text = self._agent_name + ' '
+        # prompt.open_question returns (text, logits), we only need text here.
+        generated_text, _ = prompt.open_question(
             call_to_action,
             max_tokens=2200,
-            answer_prefix=output,
+            answer_prefix=output_text, # Pass the current output_text as prefix
         )
+        output = output_text + generated_text # Concatenate the strings
     elif action_spec.output_type == entity.OutputType.CHOICE:
       idx = prompt.multiple_choice_question(
           question=call_to_action, answers=action_spec.options

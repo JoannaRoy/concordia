@@ -118,17 +118,18 @@ class ConcatActComponent(entity_component.ActingComponent):
         ),
     )
     if action_spec.output_type == entity_lib.OutputType.FREE:
-      output = self.get_entity().name + ' '
-      output += prompt.open_question(
+      output_prefix = self.get_entity().name + ' '
+      response_text, _ = prompt.open_question(
           call_to_action,
           max_tokens=2200,
-          answer_prefix=output,
+          answer_prefix=output_prefix,
           # This terminator protects against the model providing extra context
           # after the end of a directly spoken response, since it normally
           # puts a space after a quotation mark only in these cases.
           terminators=('" ', '\n'),
           question_label='Exercise',
       )
+      output = output_prefix + response_text
       self._log(output, prompt)
       return output
     elif action_spec.output_type == entity_lib.OutputType.CHOICE:
@@ -140,14 +141,17 @@ class ConcatActComponent(entity_component.ActingComponent):
       return output
     elif action_spec.output_type == entity_lib.OutputType.FLOAT:
       prefix = self.get_entity().name + ' '
-      sampled_text = prompt.open_question(
+      sampled_text, _ = prompt.open_question(
           call_to_action,
           max_tokens=2200,
           answer_prefix=prefix,
       )
-      self._log(sampled_text, prompt)
+      # It's important to log the raw sampled_text before trying to convert to float
+      # For consistency, if we had a place to log logits for this component, we would.
+      self._log(prefix + sampled_text, prompt)
       try:
-        return str(float(sampled_text))
+        # Use sampled_text here, which is the string part
+        return str(float(sampled_text.strip()))
       except ValueError:
         return '0.0'
     else:
@@ -171,4 +175,3 @@ class ConcatActComponent(entity_component.ActingComponent):
 
   def set_state(self, state: entity_component.ComponentState) -> None:
     pass
-

@@ -18,6 +18,7 @@ from collections.abc import Callable, Collection, Sequence
 import datetime
 import json
 import re
+from typing import Optional, Any
 
 from concordia.components.agent import action_spec_ignored
 from concordia.components.agent import memory as memory_component
@@ -105,6 +106,7 @@ class QuestionOfRecentMemories(
     self._answer_prefix = answer_prefix
     self._add_to_memory = add_to_memory
     self._memory_tag = memory_tag
+    self._last_computed_logits: Optional[Any] = None
 
   def get_component_pre_act_label(self, component_name: str) -> str:
     """Returns the pre-act label of a named component of the parent entity."""
@@ -120,7 +122,7 @@ class QuestionOfRecentMemories(
         f'  {self.get_component_pre_act_label(key)}: '
         f'{self.get_named_component_pre_act_value(key)}')
 
-  def _make_pre_act_value(self) -> str:
+  def _compute_value_and_logits(self) -> tuple[str, Optional[Any]]:
     agent_name = self.get_entity().name
 
     memory = self.get_entity().get_component(
@@ -143,21 +145,22 @@ class QuestionOfRecentMemories(
     prompt.statement(component_states)
 
     question = self._question.format(agent_name=agent_name)
-    result = prompt.open_question(
+    result_text, result_logits = prompt.open_question(
         question,
         answer_prefix=self._answer_prefix.format(agent_name=agent_name),
         max_tokens=1000,
         terminators=self._terminators,
     )
-    result = self._answer_prefix.format(agent_name=agent_name) + result
+    result_text = self._answer_prefix.format(agent_name=agent_name) + result_text
 
     if self._add_to_memory:
-      memory.add(f'{self._memory_tag} {result}')
+      memory.add(f'{self._memory_tag} {result_text}')
 
     log = {
         'Key': self.get_pre_act_label(),
         'Summary': question,
-        'State': result,
+        'State': result_text,
+        'Logits': result_logits,
         'Chain of thought': prompt.view().text().splitlines(),
     }
 
@@ -166,7 +169,12 @@ class QuestionOfRecentMemories(
 
     self._logging_channel(log)
 
-    return result
+    return result_text, result_logits
+
+  def _make_pre_act_value(self) -> str:
+    text_value, logits_value = self._compute_value_and_logits()
+    self._last_computed_logits = logits_value
+    return text_value
 
 
 class QuestionOfRecentMemoriesWithoutPreAct(
@@ -405,12 +413,13 @@ class Reasoning(QuestionOfRecentMemories):
           'Action Type': action_spec.output_type.name,
           'Skipped': True,
           'Summary': 'Action type not FREE_ACTION_TYPE, Reasoning component returning empty.',
+          'Logits': None,
           'Chain of thought': [],
       })
       return ''
 
     # --- Step 1: Get General Guidance ---
-    general_guidance_text = self._make_pre_act_value()
+    general_guidance_text, general_guidance_logits = self._compute_value_and_logits()
     agent_name = self.get_entity().name
 
     # --- Step 2: Specific Decision with REASONING_INSTRUCTIONS ---
@@ -423,7 +432,7 @@ class Reasoning(QuestionOfRecentMemories):
     )
 
     decision_answer_prefix = f'{agent_name} '
-    decision_output_text_from_llm = decision_prompt.open_question(
+    decision_output_text_from_llm, decision_logits = decision_prompt.open_question(
         final_call_to_action_prompt_text,
         answer_prefix=decision_answer_prefix,
         max_tokens=2200,
@@ -438,10 +447,12 @@ class Reasoning(QuestionOfRecentMemories):
         'Action Type': action_spec.output_type.name,
         'Skipped': False,
         'Input General Guidance': general_guidance_text,
+        'General Guidance Logits': general_guidance_logits,
         'Specific Action Call (with REASONING_INSTRUCTIONS)': final_call_to_action_prompt_text,
         'LLM Call for Decision (question)': final_call_to_action_prompt_text,
         'LLM Call for Decision (answer_prefix)': decision_answer_prefix,
         'LLM Call for Decision (raw_output)': decision_output_text_from_llm,
+        'Decision Logits': decision_logits,
         'Returned Action String': final_decision_output_string,
         'Chain of thought (Decision Step)': decision_prompt.view().text().splitlines(),
     }
@@ -456,7 +467,8 @@ class Reasoning(QuestionOfRecentMemories):
           current_time_str,
           general_guidance_text,
           call_to_action_for_decision,
-          decision_output_text_from_llm
+          decision_output_text_from_llm,
+          decision_logits
       )
 
     return final_decision_output_string
@@ -467,14 +479,33 @@ class Reasoning(QuestionOfRecentMemories):
       current_time_str: str,
       general_guidance_text: str,
       action_query: str,
-      raw_llm_decision_output: str
+      raw_llm_decision_output: str,
+      decision_logits: Optional[Any]
   ):
     """Helper function to parse and log structured reasoning to a JSONL file."""
-    try:
-        decision = raw_llm_decision_output.split('DECISION:')[1]
+    # Attempt to convert logits to a JSON-serializable format if they are not None
+    serializable_decision_logits = None
+    if decision_logits is not None:
+        if hasattr(decision_logits, 'tolist'): # For tensor-like objects
+            serializable_decision_logits = decision_logits.tolist()
+        elif isinstance(decision_logits, (list, dict, str, int, float, bool)):
+            serializable_decision_logits = decision_logits
+        else:
+            serializable_decision_logits = str(decision_logits) # Fallback to string representation
 
-        reasons_text = raw_llm_decision_output.split('REASON(S):')[1]
-        reasons = [r.strip() for r in re.split(r'\d+\.', reasons_text) if r.strip()]
+    try:
+        decision_parts = raw_llm_decision_output.split('DECISION:')
+        if len(decision_parts) > 1:
+            decision = decision_parts[1].split('REASON(S):')[0].strip()
+        else:
+            decision = "" # Or handle as an error/default
+
+        reasons_parts = raw_llm_decision_output.split('REASON(S):')
+        if len(reasons_parts) > 1:
+            reasons_text = reasons_parts[1].strip()
+            reasons = [r.strip() for r in re.split(r'\d+\.', reasons_text) if r.strip()]
+        else:
+            reasons = [] # Or handle as an error/default
 
         json_log_data = {
             'agent_name': agent_name,
@@ -483,6 +514,7 @@ class Reasoning(QuestionOfRecentMemories):
             'action_query': action_query,
             'decision': decision,
             'reasons': reasons,
+            'decision_logits': serializable_decision_logits,
         }
         with open(self._reasoning_log_file, 'a', encoding='utf-8') as f:
             f.write(json.dumps(json_log_data) + '\n')
@@ -499,6 +531,7 @@ class Reasoning(QuestionOfRecentMemories):
                 'general_guidance': general_guidance_text,
                 'action_query': action_query,
                 'raw_llm_decision_output': raw_llm_decision_output,
+                'decision_logits': serializable_decision_logits,
                 'parsing_error_encountered_before_full_data_construct': True
             }
 

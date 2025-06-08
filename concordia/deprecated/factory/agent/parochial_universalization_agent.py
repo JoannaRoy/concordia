@@ -18,6 +18,7 @@ from collections.abc import Callable, Mapping
 import datetime
 import json
 import types
+from typing import Optional, Any
 
 from concordia.agents.deprecated import entity_agent_with_logging
 from concordia.associative_memory.deprecated import associative_memory
@@ -105,7 +106,7 @@ class Universalization(action_spec_ignored.ActionSpecIgnored):
 
     Args:
       model: The language model to use.
-      context_components: The components to condition the answer on. This is a 
+      context_components: The components to condition the answer on. This is a
         mapping of component name to their labels to use in the prompt.
       options_components: Components to report the options currently available
         to the focal agent. This component will consider the universalization
@@ -120,6 +121,7 @@ class Universalization(action_spec_ignored.ActionSpecIgnored):
     self._context_components = dict(context_components)
     self._options_components = dict(options_components)
     self._logging_channel = logging_channel
+    self._last_computed_logits: Optional[Any] = None
 
   def _make_pre_act_value(self) -> str:
     """Considers the universalization of each of the provided options."""
@@ -142,7 +144,7 @@ class Universalization(action_spec_ignored.ActionSpecIgnored):
     chain_of_thought.statement(
         f'\n**{agent_name}\'s available options to consider**\n'
         f'{options_component_values}')
-    result = chain_of_thought.open_question(
+    result_text, result_logits = chain_of_thought.open_question(
         question=(f'{agent_name} ponders the available options, considering '
                   'for each of them: "What if everyone behaved that way?" '
                   f'Write out {agent_name}\'s thoughts on this matter. Make '
@@ -152,13 +154,15 @@ class Universalization(action_spec_ignored.ActionSpecIgnored):
         terminators=(),
         question_label='Exercise',
     )
+    self._last_computed_logits = result_logits
 
     self._logging_channel(
         {'Key': self.get_pre_act_key(),
-         'Value': result,
+         'Value': result_text,
+         'Logits': result_logits,
          'Chain of thought': chain_of_thought.view().text().splitlines()})
 
-    return result
+    return result_text
 
 
 def build_agent(

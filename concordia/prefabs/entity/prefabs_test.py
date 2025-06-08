@@ -82,12 +82,13 @@ class EntityPrefabsTest(parameterized.TestCase):
     entity.observe('bar')
 
     # Choice action
-    action = entity.act(action_spec=DECISION_ACTION_SPEC)
-    self.assertIn(action, OPTIONS)
+    action_choice = entity.act(action_spec=DECISION_ACTION_SPEC)
+    self.assertIn(action_choice, OPTIONS)
 
     # Speech action
-    action = entity.act(action_spec=SPEECH_ACTION_SPEC)
-    self.assertIsInstance(action, str)
+    speech_result = entity.act(action_spec=SPEECH_ACTION_SPEC)
+    speech_text = speech_result[0] if isinstance(speech_result, tuple) else speech_result
+    self.assertIsInstance(speech_text, str)
 
 
 if __name__ == '__main__':

@@ -25,6 +25,7 @@ from concordia.utils import text
 from concordia.utils.deprecated import measurements as measurements_lib
 import google.generativeai as genai
 from typing_extensions import override
+from typing import Optional, Any
 
 
 MAX_MULTIPLE_CHOICE_ATTEMPTS = 20
@@ -146,7 +147,7 @@ class GoogleAIStudioLanguageModel(language_model.LanguageModel):
       temperature: float = language_model.DEFAULT_TEMPERATURE,
       timeout: float = language_model.DEFAULT_TIMEOUT_SECONDS,
       seed: int | None = None,
-  ) -> str:
+  ) -> tuple[str, Optional[Any]]:
     del timeout
     if seed is not None:
       raise NotImplementedError('Unclear how to set seed for aistudio models.')
@@ -183,7 +184,7 @@ class GoogleAIStudioLanguageModel(language_model.LanguageModel):
       self._measurements.publish_datum(
           self._channel,
           {'raw_text_length': len(response)})
-    return text.truncate(response, delimiters=terminators)
+    return text.truncate(response, delimiters=terminators), None
 
   @override
   def sample_choice(
@@ -193,7 +194,7 @@ class GoogleAIStudioLanguageModel(language_model.LanguageModel):
       *,
       seed: int | None = None,
   ) -> tuple[int, str, dict[str, float]]:
-    sample = ''
+    sample_text_val = ''
     answer = ''
     for attempts in range(MAX_MULTIPLE_CHOICE_ATTEMPTS):
       # Increase temperature after the first failed attempt.
@@ -204,17 +205,17 @@ class GoogleAIStudioLanguageModel(language_model.LanguageModel):
           'The following is a multiple choice question. Respond ' +
           'with one of the possible choices, such as (a) or (b). ' +
           f'Do not include reasoning.\n{prompt}')
-      sample = self.sample_text(
+      sample_text_val, _ = self.sample_text(
           question,
           max_tokens=256,  # This is wasteful, but Gemini blocks lower values.
           temperature=temperature,
           seed=seed,
       )
-      answer = sampling.extract_choice_response(sample)
+      answer = sampling.extract_choice_response(sample_text_val)
       try:
         idx = responses.index(answer)
       except ValueError:
-        print(f'Sample choice fail: {answer} extracted from {sample}.')
+        print(f'Sample choice fail: {answer} extracted from {sample_text_val}.')
         continue
       else:
         if self._measurements is not None:
@@ -225,6 +226,6 @@ class GoogleAIStudioLanguageModel(language_model.LanguageModel):
         return idx, responses[idx], debug
 
     raise language_model.InvalidResponseError(
-        (f'Too many multiple choice attempts.\nLast attempt: {sample}, ' +
+        (f'Too many multiple choice attempts.\nLast attempt: {sample_text_val}, ' +
          f'extracted: {answer}')
     )

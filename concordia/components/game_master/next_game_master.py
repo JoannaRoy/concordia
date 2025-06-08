@@ -154,7 +154,7 @@ class FormativeMemoriesInitializer(
       pre_act_label: str = '',
   ):
     """A component that generates a backstory for each player entity.
-    
+
     As this is an initializer, it should only be called once per episode. To
     achieve this, it returns the name of the next game master once it finishes.
     The idea is to use one game master (with this component) for initialization,
@@ -278,8 +278,8 @@ class FormativeMemoriesInitializer(
       )
       prompt.statement(f'Answer: {player_specific_context}\n')
 
-    gender = prompt.open_question("What is the protagonist's gender?")
-    date_of_birth = prompt.open_question(
+    gender, _ = prompt.open_question("What is the protagonist's gender?")
+    date_of_birth, _ = prompt.open_question(
         'What year was protagonist born? Respond with just the year as a '
         'number, e.g. "1990".'
     )
@@ -301,7 +301,7 @@ class FormativeMemoriesInitializer(
         ' should not specify how their life ends. The reader should be left'
         f' with a profound understanding of {active_entity_name}.'
     )
-    backstory = prompt.open_question(
+    backstory, _ = prompt.open_question(
         question,
         max_tokens=4500,
         terminators=['\nQuestion', '-----'],
@@ -328,7 +328,7 @@ class FormativeMemoriesInitializer(
         f'"{self._delimiter_symbol}". Do not apply any other '
         'special formatting besides these delimiters.'
     )
-    aggregated_result = prompt.open_question(
+    aggregated_result, _ = prompt.open_question(
         question=question,
         max_tokens=6000,
         terminators=[],

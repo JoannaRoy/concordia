@@ -117,12 +117,12 @@ class QuestionOfQueryAssociatedMemories(action_spec_ignored.ActionSpecIgnored):
 
     question = self._question.format(query=query, agent_name=agent_name)
 
-    result = prompt.open_question(
+    result_text, _ = prompt.open_question(
         '\n'.join([question, f'Statements:\n{mems}']),
         max_tokens=1000,
         answer_prefix=f'{agent_name} is ',
     )
-    return result
+    return result_text
 
   def _make_pre_act_value(self) -> str:
     agent_name = self.get_entity().name
@@ -134,13 +134,14 @@ class QuestionOfQueryAssociatedMemories(action_spec_ignored.ActionSpecIgnored):
         [f'{query}: {result}' for query, result in results.items()]
     )
     if self._summarization_question is not None:
-      prompt = self._summarization_question.format(
+      prompt_str = self._summarization_question.format(
           agent_name=agent_name,
           results_str=results_str,
       )
-      output = f'{agent_name} is ' + self._model.sample_text(
-          f'{prompt}\n {agent_name} is ', max_tokens=500
+      summary_text, _ = self._model.sample_text(
+          f'{prompt_str}\n {agent_name} is ', max_tokens=500
       )
+      output = f'{agent_name} is ' + summary_text
     else:
       output = results_str
 

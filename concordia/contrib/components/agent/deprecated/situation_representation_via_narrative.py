@@ -18,6 +18,7 @@
 from collections.abc import Callable, Mapping, Sequence
 import datetime
 import types
+from typing import Optional, Any
 
 from absl import logging as absl_logging
 from concordia.components.agent import deprecated as agent_components
@@ -82,7 +83,7 @@ class SituationRepresentation(action_spec_ignored.ActionSpecIgnored):
           entity_component.ComponentName, str
       ] = types.MappingProxyType({}),
       declare_entity_as_protagonist: bool = True,
-      pre_act_key: str = 'The current situation',
+      pre_act_key: str = 'Situation Representation',
       logging_channel: logging.LoggingChannel = logging.NoOpLoggingChannel,
   ):
     """Initialize a component to consider the current situation.
@@ -110,6 +111,7 @@ class SituationRepresentation(action_spec_ignored.ActionSpecIgnored):
 
     self._previous_time = None
     self._situation_thus_far = None
+    self._last_computed_logits: Optional[Any] = None
 
   def _add_components_if_any(
       self,

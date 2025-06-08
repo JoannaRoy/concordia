@@ -15,6 +15,7 @@
 """Return memories similar to a prompt composed of component pre_act values."""
 
 from collections.abc import Sequence
+from typing import Optional, Any
 
 from concordia.components.agent import action_spec_ignored
 from concordia.components.agent import memory as memory_component
@@ -55,6 +56,7 @@ class AllSimilarMemories(
     self._memory_component_key = memory_component_key
     self._components = components
     self._num_memories_to_retrieve = num_memories_to_retrieve
+    self._last_summary_logits: Optional[Any] = None
 
   def get_component_pre_act_label(self, component_name: str) -> str:
     """Returns the pre-act label of a named component of the parent entity."""
@@ -78,15 +80,16 @@ class AllSimilarMemories(
         [self._component_pre_act_display(key) for key in self._components]
     )
     prompt.statement(f'Statements:\n{component_states}\n')
-    prompt_summary = prompt.open_question(
+    summary_text, summary_logits = prompt.open_question(
         'Summarize the statements above.', max_tokens=750
     )
+    self._last_summary_logits = summary_logits
 
     memory = self.get_entity().get_component(
         self._memory_component_key, type_=memory_component.AssociativeMemory
     )
 
-    query = f'{agent_name}, {prompt_summary}'
+    query = f'{agent_name}, {summary_text}'
     result = '\n'.join([
         mem
         for mem in memory.retrieve_associative(
@@ -97,6 +100,7 @@ class AllSimilarMemories(
     self._logging_channel({
         'Key': self.get_pre_act_label(),
         'Value': result,
+        'SummaryLogits': self._last_summary_logits,
         'Chain of thought': prompt.view().text().splitlines(),
         'Query': f'{query}',
     })

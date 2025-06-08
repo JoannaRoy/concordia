@@ -15,7 +15,7 @@
 """Language model that always returns empty strings and choice 0 (for debug)."""
 
 from collections.abc import Collection, Mapping, Sequence
-from typing import Any
+from typing import Any, Optional
 
 from concordia.language_model import language_model
 from typing_extensions import override
@@ -40,8 +40,8 @@ class NoLanguageModel(language_model.LanguageModel):
       temperature: float = language_model.DEFAULT_TEMPERATURE,
       timeout: float = language_model.DEFAULT_TIMEOUT_SECONDS,
       seed: int | None = None,
-  ) -> str:
-    return ''
+  ) -> tuple[str, Optional[Any]]:
+    return '', None
 
   @override
   def sample_choice(

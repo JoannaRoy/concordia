@@ -92,7 +92,7 @@ class PersonRepresentation(action_spec_ignored.ActionSpecIgnored):
     find_people_prompt = interactive_document.InteractiveDocument(self._model)
     find_people_prompt.statement(
         f'Recent observations of {agent_name}:\n{mems}')
-    people_str = find_people_prompt.open_question(
+    people_str_text, _ = find_people_prompt.open_question(
         question=('Create a comma-separated list containing all the proper '
                   'names of people mentioned in the observations above. For '
                   'example if the observations mention Julie, Michael, '
@@ -101,7 +101,7 @@ class PersonRepresentation(action_spec_ignored.ActionSpecIgnored):
         question_label='Exercise',)
     # Ignore leading and trailing whitespace in detected names
     self._names_detected.extend(  #  pytype: disable=attribute-error
-        [name.strip() for name in people_str.split(',')])
+        [name.strip() for name in people_str_text.split(',')])
     # Prevent adding duplicates
     self._names_detected = list(set(self._names_detected))
     # Prevent adding too many names, forgetting some if there are too many
@@ -149,16 +149,16 @@ class PersonRepresentation(action_spec_ignored.ActionSpecIgnored):
                   'accents, styles of speech, conversational quirks, topics '
                   'they frequently bring up, salient or unusual beliefs, and '
                   'any other relevant details.')
-      person_description = new_prompt.open_question(
+      person_description_text, _ = new_prompt.open_question(
           f'{question}\n',
           max_tokens=350,
           terminators=('\n\n',),
           question_label='Exercise',
           answer_prefix=f'{person_name} is ',
       )
-      person_representation = f'{person_name} is {person_description}'
+      person_representation = f'{person_name} is {person_description_text}'
       for question in self._additional_questions:
-        additional_result = new_prompt.open_question(
+        additional_result_text, _ = new_prompt.open_question(
             question,
             max_tokens=200,
             terminators=('\n',),
@@ -166,7 +166,7 @@ class PersonRepresentation(action_spec_ignored.ActionSpecIgnored):
             answer_prefix=f'{person_name} is ',
         )
         person_representation = (f'{person_representation}\n    '
-                                 f'{person_name} is {additional_result}')
+                                 f'{person_name} is {additional_result_text}')
 
       person_respresentations.append(person_representation + '\n***')
       prompt_copies_to_log.append(new_prompt.view().text())

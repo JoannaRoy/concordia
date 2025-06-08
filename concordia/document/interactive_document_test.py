@@ -39,19 +39,21 @@ class InteractiveDocumentTest(parameterized.TestCase):
     model = mock.create_autospec(
         language_model.LanguageModel, instance=True, spec_set=True
     )
-    model.sample_text.return_value = 'This is a long answer'
+    model.sample_text.return_value = ('This is a long answer', None)
 
     doc = interactive_document.InteractiveDocument(model)
     doc.statement('Hello')
-    response = doc.open_question(
+    response_text, response_logits = doc.open_question(
         question='What is 1+1?',
         answer_prefix='Well...',
         max_tokens=mock.sentinel.max_tokens,
         terminators=mock.sentinel.terminators,
     )
 
-    with self.subTest('response'):
-      self.assertEqual(response, 'This is a long answer')
+    with self.subTest('response_text'):
+      self.assertEqual(response_text, 'This is a long answer')
+    with self.subTest('response_logits'):
+      self.assertIsNone(response_logits)
 
     with self.subTest('model'):
       prompt = """Hello
@@ -84,18 +86,19 @@ Answer: Well...This is a long answer
     model = mock.create_autospec(
         language_model.LanguageModel, instance=True, spec_set=True
     )
-    model.sample_text.return_value = 'This is a long answer'
 
     doc = interactive_document.InteractiveDocument(model)
     doc.statement('Hi!')
-    response = doc.open_question(
+    response_text, response_logits = doc.open_question(
         question='What is 1+1?',
         forced_response='I hereby declare the answer to be 7',
         answer_prefix='OK then...',
     )
 
-    with self.subTest('response'):
-      self.assertEqual(response, 'I hereby declare the answer to be 7')
+    with self.subTest('response_text'):
+      self.assertEqual(response_text, 'I hereby declare the answer to be 7')
+    with self.subTest('response_logits'):
+      self.assertIsNone(response_logits)
 
     with self.subTest('text'):
       expected = """Hi!

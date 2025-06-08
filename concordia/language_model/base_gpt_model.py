@@ -15,6 +15,7 @@
 """Base class for GPT models (OpenAI and Azure)."""
 
 from collections.abc import Collection, Sequence
+from typing import Optional, Any
 
 from concordia.language_model import language_model
 from concordia.utils import sampling
@@ -53,7 +54,7 @@ class BaseGPTModel(language_model.LanguageModel):
       temperature: float = language_model.DEFAULT_TEMPERATURE,
       timeout: float = language_model.DEFAULT_TIMEOUT_SECONDS,
       seed: int | None = None,
-  ) -> str:
+  ) -> tuple[str, Optional[Any]]:
     # Limit tokens to 4000 for GPT models
     max_tokens = min(max_tokens, 4000)
 
@@ -90,14 +91,19 @@ class BaseGPTModel(language_model.LanguageModel):
         timeout=timeout,
         stop=terminators,
         seed=seed,
+        logprobs=True,
     )
+
+    logprobs = None
+    if response.choices and response.choices[0].logprobs:
+        logprobs = response.choices[0].logprobs
 
     if self._measurements is not None:
       self._measurements.publish_datum(
           self._channel,
           {'raw_text_length': len(response.choices[0].message.content)},
       )
-    return response.choices[0].message.content
+    return response.choices[0].message.content, logprobs
 
   @override
   def sample_choice(
@@ -121,7 +127,7 @@ class BaseGPTModel(language_model.LanguageModel):
           attempts, _MAX_MULTIPLE_CHOICE_ATTEMPTS
       )
 
-      sample = self.sample_text(
+      sample, _ = self.sample_text(
           prompt,
           temperature=temperature,
           seed=seed,

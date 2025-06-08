@@ -42,7 +42,7 @@ class PlayerStatusTest(parameterized.TestCase):
     """
     model = mock.create_autospec(
         language_model.LanguageModel, instance=True, spec_set=True)
-    model.sample_text.return_value = location
+    model.sample_text.return_value = (location, None)
     memory = mock.create_autospec(associative_memory.AssociativeMemory,
                                   instance=True)
     memory.__len__.return_value = 1

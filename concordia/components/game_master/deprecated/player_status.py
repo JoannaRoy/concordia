@@ -89,7 +89,7 @@ class PlayerStatus(component.Component):
         return
       self._last_memory_len = len(self._memory)
 
-      self._state = ''
+      player_states_list = []
       self._partial_states = {name: '' for name in self._player_names}
       per_player_prompt = {}
       for player_name in self._player_names:
@@ -99,22 +99,25 @@ class PlayerStatus(component.Component):
         prompt.statement('Events:\n' + '\n'.join(memories) + '\n')
         time_now = self._clock_now().strftime('[%d %b %Y %H:%M:%S]')
         prompt.statement(f'The current time is: {time_now}\n')
-        player_loc = (
+        player_loc_text, _ = (
             prompt.open_question(
                 'Given the above events and their time, what is the latest'
                 f' location of {player_name} and what are they doing?',
                 answer_prefix=f'{player_name} is ',
             )
-            + '\n'
         )
+        player_loc_with_newline = player_loc_text + '\n'
+
         per_player_prompt[player_name] = prompt.view().text().splitlines()
         if self._verbose:
           print(prompt.view().text())
 
         # Indent player status outputs.
-        player_state_string = f'  {player_name} is ' + player_loc
+        player_state_string = f'  {player_name} is ' + player_loc_text
         self._partial_states[player_name] = player_state_string
-        self._state = self._state + player_state_string
+        player_states_list.append(player_state_string)
+
+      self._state = '\n'.join(player_states_list) + '\n'
 
       update_log = {
           'date': self._clock_now(),

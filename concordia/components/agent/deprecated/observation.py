@@ -17,6 +17,7 @@
 from collections.abc import Callable, Mapping
 import datetime
 import types
+from typing import Optional, Any
 
 from concordia.components.agent.deprecated import action_spec_ignored
 from concordia.components.agent.deprecated import memory_component
@@ -149,6 +150,7 @@ class ObservationSummary(action_spec_ignored.ActionSpecIgnored):
     self._display_timeframe = display_timeframe
 
     self._logging_channel = logging_channel
+    self._last_computed_logits: Optional[Any] = None
 
   def _make_pre_act_value(self) -> str:
     agent_name = self.get_entity().name
@@ -179,15 +181,14 @@ class ObservationSummary(action_spec_ignored.ActionSpecIgnored):
     prompt.statement(
         f'Recent observations of {agent_name}:\n' + f'{mems}\n'
     )
-    result = (
-        agent_name
-        + ' '
-        + prompt.open_question(
-            self._prompt,
-            answer_prefix=f'{agent_name} ',
-            max_tokens=1200,
-        )
+    summary_text, summary_logits = prompt.open_question(
+        self._prompt,
+        answer_prefix=f'{agent_name} ',
+        max_tokens=1200,
     )
+    self._last_computed_logits = summary_logits
+
+    result = agent_name + ' ' + summary_text
 
     if self._display_timeframe:
       if segment_start.date() == segment_end.date():
@@ -203,6 +204,7 @@ class ObservationSummary(action_spec_ignored.ActionSpecIgnored):
     self._logging_channel({
         'Key': self.get_pre_act_key(),
         'Value': result,
+        'Logits': self._last_computed_logits,
         'Chain of thought': prompt.view().text().splitlines(),
     })
 

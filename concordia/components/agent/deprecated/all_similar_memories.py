@@ -15,7 +15,7 @@
 """Return all memories similar to a prompt and filter them for relevance."""
 
 import types
-from typing import Mapping
+from typing import Mapping, Optional, Any
 
 from concordia.components.agent.deprecated import action_spec_ignored
 from concordia.components.agent.deprecated import memory_component
@@ -66,6 +66,8 @@ class AllSimilarMemories(action_spec_ignored.ActionSpecIgnored):
     self._components = dict(components)
     self._num_memories_to_retrieve = num_memories_to_retrieve
     self._logging_channel = logging_channel
+    self._last_summary_logits: Optional[Any] = None
+    self._last_result_logits: Optional[Any] = None
 
   def _make_pre_act_value(self) -> str:
     agent_name = self.get_entity().name
@@ -77,15 +79,16 @@ class AllSimilarMemories(action_spec_ignored.ActionSpecIgnored):
         for key, prefix in self._components.items()
     ])
     prompt.statement(f'Statements:\n{component_states}\n')
-    prompt_summary = prompt.open_question(
+    summary_text, summary_logits = prompt.open_question(
         'Summarize the statements above.', max_tokens=750
     )
+    self._last_summary_logits = summary_logits
 
     memory = self.get_entity().get_component(
         self._memory_component_name,
         type_=memory_component.MemoryComponent)
 
-    query = f'{agent_name}, {prompt_summary}'
+    query = f'{agent_name}, {summary_text}'
     mems = '\n'.join(
         [mem.text for mem in memory.retrieve(
             query=query,
@@ -104,21 +107,24 @@ class AllSimilarMemories(action_spec_ignored.ActionSpecIgnored):
         'are usually important to consider.'
     )
     new_prompt = prompt.new()
-    result = new_prompt.open_question(
+    result_text, result_logits = new_prompt.open_question(
         f'{question}\nStatements:\n{mems}',
         max_tokens=2000,
         terminators=('\n\n',),
     )
+    self._last_result_logits = result_logits
 
     self._logging_channel({
         'Key': self.get_pre_act_key(),
-        'Value': result,
+        'Value': result_text,
+        'SummaryLogits': self._last_summary_logits,
+        'ResultLogits': self._last_result_logits,
         'Initial chain of thought': prompt.view().text().splitlines(),
         'Query': f'{query}',
         'Final chain of thought': new_prompt.view().text().splitlines(),
     })
 
-    return result
+    return result_text
 
 
 class AllSimilarMemoriesWithoutPreAct(

@@ -2,7 +2,7 @@
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
-# You may obtain a copy of the  License at
+# You may obtain a copy of the License at
 #
 #     https://www.apache.org/licenses/LICENSE-2.0
 #
@@ -12,133 +12,143 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Language Model that uses HuggingFace's transformers library."""
+"""HuggingFace Language Model API."""
 
 from collections.abc import Collection, Mapping, Sequence
-from typing import Any
+from typing import Any, Optional
 
+import torch
 import huggingface_hub
+import transformers
+from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
 
 from concordia.language_model import language_model
-from concordia.utils.deprecated import measurements as measurements_lib
-from transformers import pipeline, BitsAndBytesConfig, AutoTokenizer, AutoModelForCausalLM
-from typing_extensions import override
+from concordia.utils import measurements as measurements_lib, sampling
+from concordia.utils import text
 
 
-DEFAULT_SYSTEM_MESSAGE = (
-    'Continue the user\'s sentences. Never repeat their starts. For example, '
-    'when you see \'Bob is\', you should continue the sentence after '
-    'the word \'is\'. It is OK to be creative with how you finish the user\'s sentences. The '
-    'most important thing is to always continue in the same style as the user.'
-)
-
+DEFAULT_TIMEOUT_SECONDS = 120.0
+MAX_MULTIPLE_CHOICE_ATTEMPTS = 20
+MAX_TOKENS_FOR_CHOICE = 32
 
 
 class HuggingFaceLanguageModel(language_model.LanguageModel):
-  """Language Model that uses HuggingFace's transformer models."""
+  """Language model API for HuggingFace models.
+
+  This class supports models loaded via the `transformers` library,
+  which can be either from the HuggingFace Hub or a local path.
+  """
 
   def __init__(
       self,
       model_name: str,
-      api_key: str,
       *,
+      device: int,
       measurements: measurements_lib.Measurements | None = None,
-      channel: str = language_model.DEFAULT_STATS_CHANNEL,
-      dtype: str = "bfloat16",
+      channel: str = 'huggingface_language_model',
+      max_tokens_for_choice: int = MAX_TOKENS_FOR_CHOICE,
+      api_key: str | None = None,
   ):
-    """Initializes the instance.
+    """Initializes the HuggingFace language model.
 
     Args:
-      model_name: The name of the HuggingFace model to use.
-        (e.g., "gpt2", "distilgpt2").
-      api_key: The API key to use when accessing the HuggingFace API. If None, will
-        use the HF_API_KEY environment variable.
-      device: The device to run the model on. -1 for CPU, 0 for GPU 0, etc.
-      measurements: The measurements object to log usage statistics to.
-      channel: The channel to write the statistics to.
+      model_name: A descriptive name for the model. If model_path is None,
+        this is also used as the HuggingFace model identifier.
+      model_path: The HuggingFace model identifier (e.g., 'gpt2') or path to a
+        local model. If None, model_name is used.
+      device: The device to run the model on (e.g., 'cpu', 'cuda', 'auto').
+        Passed to the `device_map` argument of `transformers.pipeline`.
+      verbose: Whether to print verbose output.
+      measurements: The measurements object to log telemetry.
+      channel: The channel to use for logging measurements.
+      max_tokens_for_choice: Max new tokens to generate when sampling a choice.
+      api_key: The API key for the HuggingFace model.
     """
-    self._model_name = model_name
+    huggingface_hub.login(token=api_key)
+    self._model_identifier = model_name
+    self._device = f'cuda:{device}'
     self._measurements = measurements
     self._channel = channel
-    self._api_key = api_key
+    self._max_tokens_for_choice = max_tokens_for_choice
 
-    huggingface_hub.login(api_key)
+    # Load tokenizer
+    self._tokenizer = AutoTokenizer.from_pretrained(self._model_identifier, use_fast=True, trust_remote_code=True)
+    if not self._tokenizer.pad_token:
+      self._tokenizer.pad_token = self._tokenizer.eos_token
+      self._tokenizer.pad_token_id = self._tokenizer.eos_token_id
 
+    # Load model
     bnb_config = BitsAndBytesConfig(
         load_in_4bit=True,
         bnb_4bit_use_double_quant=True,
         bnb_4bit_quant_type="nf4",
-        bnb_4bit_compute_dtype=dtype,
+        bnb_4bit_compute_dtype="float16",
     )
-    tokenizer = AutoTokenizer.from_pretrained(model_name, use_fast=True)
     model = AutoModelForCausalLM.from_pretrained(
-        model_name,
+        self._model_identifier,
         quantization_config=bnb_config,
         device_map="auto",
+        trust_remote_code=True,
     )
 
-    # Initialize the HuggingFace pipeline
-    self._pipeline = pipeline("text-generation", model=model, tokenizer=tokenizer)
-    print(f"DEBUG: HuggingFace Pipeline initialized on device: {self._pipeline.device}")
+    # Load pipeline
+    self._pipeline = transformers.pipeline(
+        "text-generation",
+        model=model,
+        tokenizer=self._tokenizer,
+    )
 
-  @override
+
   def sample_text(
       self,
       prompt: str,
-      *_,
+      *,
       max_tokens: int = language_model.DEFAULT_MAX_TOKENS,
       terminators: Collection[str] = language_model.DEFAULT_TERMINATORS,
       temperature: float = language_model.DEFAULT_TEMPERATURE,
-      seed: int | None = None,
-  ) -> str:
-    """Samples text from the HuggingFace model."""
-    if temperature <= 0:
-        temperature = 0.1
-
-    messages = [
-        {'role': 'system', 'content': DEFAULT_SYSTEM_MESSAGE},
-        # few shot examples
-        {'role': 'user', 'content': 'Question: Is Jake a turtle?\\nAnswer: Jake is '},
-        {'role': 'assistant', 'content': 'not a turtle.'},
-        {'role': 'user', 'content': prompt}
-    ]
+      timeout: float = DEFAULT_TIMEOUT_SECONDS, # pylint: disable=unused-argument
+      seed: int | None = None, # pylint: disable=unused-argument
+  ) -> tuple[str, Optional[Mapping[str, Any]]]:
+    generation_kwargs = {}
+    if temperature == 0:
+        generation_kwargs = {"do_sample": False}
+    elif temperature > 0:
+        generation_kwargs = {"temperature": temperature, "do_sample": True}
 
     try:
-        generation_args = {
-            "max_new_tokens": max_tokens,
-            "temperature": temperature,
-            "return_full_text": False,
-            "num_return_sequences": 1,
-        }
-        if seed is not None:
-            generation_args["seed"] = seed
-
-        # The pipeline should apply the model's chat template to the messages.
-        outputs = self._pipeline(
-            messages,
-            **generation_args
-        )
-        generated_text = outputs[0]['generated_text']
-
-        # Manual truncation based on terminators
-        if terminators:
-            for term in terminators:
-                if term in generated_text:
-                    generated_text = generated_text.split(term)[0]
-
-    except Exception as e:
-      # Log or handle the exception appropriately
-      print(f"Error during HuggingFace model generation: {e}")
-      return "" # Return empty string or raise an error
-
-    if self._measurements is not None:
-      self._measurements.publish_datum(
-          self._channel,
-          {'raw_text_length': len(generated_text)},
+      response = self._pipeline(
+          prompt,
+          max_new_tokens=max_tokens,
+          pad_token_id=self._tokenizer.pad_token_id,
+          **generation_kwargs
       )
-    return generated_text
 
-  @override
+      if response and isinstance(response, list) and \
+         isinstance(response[0], dict) and 'generated_text' in response[0]:
+        full_text = response[0]['generated_text']
+
+        if full_text.startswith(prompt):
+          generated_text_only = full_text[len(prompt):]
+        else:
+          generated_text_only = full_text
+
+        truncated_text = text.truncate(generated_text_only, delimiters=terminators)
+
+        if self._measurements is not None:
+          self._measurements.publish_datum(
+              self._channel,
+              {'raw_text_length': len(truncated_text),
+               'model_identifier': self._model_identifier})
+        return truncated_text, None
+
+      else:
+        return "", None
+
+    except Exception as e: # pylint: disable=broad-except
+      raise e
+
+
+
   def sample_choice(
       self,
       prompt: str,
@@ -146,56 +156,29 @@ class HuggingFaceLanguageModel(language_model.LanguageModel):
       *_,
       seed: int | None = None, # pylint: disable=unused-argument
   ) -> tuple[int, str, Mapping[str, Any]]:
-    """Samples a response from those available using the HuggingFace model.
+    for attempts in range(MAX_MULTIPLE_CHOICE_ATTEMPTS):
+      current_temperature = sampling.dynamically_adjust_temperature(
+          attempts, MAX_MULTIPLE_CHOICE_ATTEMPTS
+      )
+      sample, _ = self.sample_text(
+          prompt=prompt,
+          max_tokens=self._max_tokens_for_choice,
+          temperature=current_temperature,
+          terminators=['\)', '\n', ' ', '.', ',']
+      )
 
-    This is a naive implementation. A more sophisticated approach would involve
-    scoring each response option based on the model's likelihood (e.g., using
-    conditional probabilities if the model/pipeline supports it easily, or by
-    looking at perplexity of `prompt + response`).
+      answer = sampling.extract_choice_response(sample)
 
-    For now, we'll just generate text and see if it happens to match one of the
-    responses, or try to steer the model. This is not ideal for multiple choice.
+      try:
+        idx = responses.index(answer)
+      except ValueError:
+        continue
+      else:
+        if self._measurements is not None:
+          self._measurements.publish_datum(
+              self._channel, {'choices_calls': attempts}
+          )
+        debug = {}
+        return idx, responses[idx], debug
 
-    Args:
-      prompt: the initial text to condition on.
-      responses: the responses to choose from.
-      seed: optional seed for the sampling.
-
-    Returns:
-      (index, response, info). The index of the sampled response, the sampled
-      response, and some info about the sampling process.
-    """
-    # Attempt to format prompt to guide model towards a choice.
-    choice_prompt = f"{prompt}\\nWhich of the following is correct?\\n"
-    for i, r in enumerate(responses):
-        choice_prompt += f"{i+1}. {r}\\n"
-    choice_prompt += "Answer with the number and the text of the correct option:"
-
-    MAX_ATTEMPTS = 3
-    attempts = 0
-    temperature = language_model.DEFAULT_TEMPERATURE
-
-    while attempts < MAX_ATTEMPTS:
-        generated_text = self.sample_text(
-            choice_prompt,
-            temperature=temperature,
-            max_tokens=max(len(r) for r in responses) + 20, # Give some room for choice text
-            seed=seed + attempts if seed is not None else None # Vary seed per attempt
-        )
-
-        for idx, response_text in enumerate(responses):
-            if response_text in generated_text:
-                if self._measurements is not None:
-                    self._measurements.publish_datum(
-                        self._channel, {'choices_calls': attempts + 1}
-                    )
-                return idx, response_text, {"attempt": attempts + 1, "raw_sample": generated_text}
-
-        attempts += 1
-        temperature += 0.2 # Increase temperature for next attempt
-
-    # If no choice is matched, raise an error or return a default.
-    raise language_model.InvalidResponseError(
-        f"HuggingFace model failed to select a valid choice after {MAX_ATTEMPTS} attempts. "
-        f"Last sample: '{generated_text}' for prompt: '{choice_prompt}'"
-    )
+    raise language_model.InvalidResponseError(f"Too many multiple choice attempts.\nLast attempt: {sample}, extracted: {answer}")

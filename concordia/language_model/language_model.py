@@ -17,7 +17,7 @@
 
 import abc
 from collections.abc import Collection, Mapping, Sequence
-from typing import Any
+from typing import Any, Optional
 
 DEFAULT_TEMPERATURE = 0.5
 DEFAULT_TERMINATORS = ()
@@ -45,7 +45,7 @@ class LanguageModel(metaclass=abc.ABCMeta):
       temperature: float = DEFAULT_TEMPERATURE,
       timeout: float = DEFAULT_TIMEOUT_SECONDS,
       seed: int | None = None,
-  ) -> str:
+  ) -> tuple[str, Optional[Any]]:
     """Samples text from the model.
 
     NOTE: Sampling method is up to the underlying implementation and may not
@@ -61,7 +61,9 @@ class LanguageModel(metaclass=abc.ABCMeta):
       seed: optional seed for the sampling. If None a random seed will be used.
 
     Returns:
-      The sampled response (i.e. does not iclude the prompt).
+      A tuple containing:
+        - The sampled response (i.e. does not iclude the prompt).
+        - Optional logits or other scoring information from the model.
 
     Raises:
       TimeoutError: if the operation times out.

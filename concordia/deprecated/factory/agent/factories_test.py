@@ -149,16 +149,19 @@ class AgentFactoriesTest(parameterized.TestCase):
     agent.observe('bar')
 
     # Free action
-    action = agent.act()
-    self.assertIsInstance(action, str)
+    action_result = agent.act()
+    action_text = action_result[0] if isinstance(action_result, tuple) else action_result
+    self.assertIsInstance(action_text, str)
 
     # Choice action
-    action = agent.act(action_spec=DECISION_ACTION_SPEC)
-    self.assertIn(action, OPTIONS)
+    action_choice_result = agent.act(action_spec=DECISION_ACTION_SPEC)
+    action_choice = action_choice_result[0] if isinstance(action_choice_result, tuple) else action_choice_result
+    self.assertIn(action_choice, OPTIONS)
 
     # Speech action
-    action = agent.act(action_spec=SPEECH_ACTION_SPEC)
-    self.assertIsInstance(action, str)
+    speech_result = agent.act(action_spec=SPEECH_ACTION_SPEC)
+    speech_text = speech_result[0] if isinstance(speech_result, tuple) else speech_result
+    self.assertIsInstance(speech_text, str)
 
 if __name__ == '__main__':
   absltest.main()

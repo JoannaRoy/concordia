@@ -23,6 +23,7 @@ import re
 from concordia.document import document
 from concordia.language_model import language_model
 import numpy as np
+from typing import Optional, Any
 
 DEFAULT_MAX_CHARACTERS = 200
 DEFAULT_MAX_TOKENS = DEFAULT_MAX_CHARACTERS // 4
@@ -151,7 +152,7 @@ class InteractiveDocument(document.Document):
       terminators: Collection[str] = ('\n',),
       question_label: str = 'Question',
       answer_label: str = 'Answer',
-  ) -> str:
+  ) -> tuple[str, Optional[Any]]:
     """Asks the agent an open question and appends it to the document.
 
     Args:
@@ -168,22 +169,26 @@ class InteractiveDocument(document.Document):
       answer_label: the label to use for the answer, typically "Answer".
 
     Returns:
-      The agents truncated response (or `forced_response` is provided).
+      A tuple containing:
+        - The agent's truncated response (or `forced_response` if provided).
+        - Optional logits from the language model, None if not applicable.
     """
     self._question(f'{question_label}: {question}\n')
     self._response(f'{answer_label}: {answer_prefix}')
+    logits: Optional[Any] = None
     if forced_response is None:
-      response = self._model.sample_text(
+      response, logits = self._model.sample_text(
           prompt=self._model_view.text(),
           max_tokens=max_tokens,
           terminators=terminators,
       )
     else:
       response = forced_response
+
     response = response.removeprefix(answer_prefix)
     self._model_response(response)
     self._response(f'{answer_suffix}\n')
-    return response
+    return response, logits
 
   def open_question_diversified(
       self,

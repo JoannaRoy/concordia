@@ -15,6 +15,7 @@
 """Component that helps a game master decide whose turn is next."""
 
 from collections.abc import Callable, Sequence
+from typing import Optional, Any
 
 from concordia.components.agent import action_spec_ignored
 from concordia.components.agent import memory as memory_component
@@ -131,6 +132,8 @@ class EventResolution(
     observers_prompt_to_log = ''
     self._active_entity_name = None
     self._putative_action = None
+    observer_names_logits_for_log: Optional[Any] = None
+
     if action_spec.output_type == entity_lib.OutputType.RESOLVE:
       prompt = interactive_document.InteractiveDocument(self._model)
       component_states = '\n'.join(
@@ -181,11 +184,11 @@ class EventResolution(
         )
         observers_prompt = prompt.copy()
         observers_prompt.statement(f'Event that occurred: {event_statement}')
-        observer_names_str = observers_prompt.open_question(
+        observer_names_text, observer_names_logits_for_log = observers_prompt.open_question(
             question=('Which entities are aware of the event? Answer with a '
                       'comma-separated list of entity names.')
         )
-        observer_names = observer_names_str.split(',')
+        observer_names = observer_names_text.split(',')
         for name in observer_names:
           make_observation.add_to_queue(name.strip(' .,'), event_statement)
 
@@ -199,6 +202,7 @@ class EventResolution(
         value=result,
         prompt=prompt_to_log,
         observers_prompt=observers_prompt_to_log,
+        observer_names_logits=observer_names_logits_for_log
     )
     return result
 
@@ -210,13 +214,17 @@ class EventResolution(
     """Returns the putative action from the entity that just took an action."""
     return self._putative_action
 
-  def _log(self, key: str, value: str, prompt: str, observers_prompt: str):
+  def _log(self, key: str, value: str, prompt: str, observers_prompt: str, observer_names_logits: Optional[Any] = None):
+    details = {'Observers prompt': observers_prompt}
+    if observer_names_logits is not None:
+        details['ObserverNamesLogits'] = observer_names_logits
+
     self._logging_channel({
         'Key': key,
         'Summary': value,
         'Value': value,
         'Prompt': prompt,
-        'Details': {'Observers prompt': observers_prompt,},
+        'Details': details,
     })
 
 

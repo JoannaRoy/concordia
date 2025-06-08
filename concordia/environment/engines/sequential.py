@@ -90,13 +90,14 @@ class Sequential(engine_lib.Engine):
                        game_master: entity_lib.Entity,
                        entity: entity_lib.Entity) -> str:
     """Make an observation for a game object."""
-    observation = game_master.act(
+    observation_result = game_master.act(
         action_spec=entity_lib.ActionSpec(
             call_to_action=self._call_to_make_observation.format(
                 name=entity.name),
             output_type=entity_lib.OutputType.MAKE_OBSERVATION,
         )
     )
+    observation = observation_result[0] if isinstance(observation_result, tuple) else observation_result
     return observation
 
   def next_acting(
@@ -110,23 +111,25 @@ class Sequential(engine_lib.Engine):
     entities_by_name = {
         entity.name: entity for entity in entities
     }
-    next_object_name = game_master.act(
+    next_object_name_result = game_master.act(
         action_spec=entity_lib.ActionSpec(
             call_to_action=self._call_to_next_acting,
             output_type=entity_lib.OutputType.NEXT_ACTING,
             options=tuple(entities_by_name.keys()),
         )
     )
+    next_object_name = next_object_name_result[0] if isinstance(next_object_name_result, tuple) else next_object_name_result
     if log is not None and hasattr(game_master, 'get_last_log'):
       assert hasattr(game_master, 'get_last_log')  # Assertion for pytype
       log_entry['next_acting'] = game_master.get_last_log()
-    next_action_spec_string = game_master.act(
+    next_action_spec_string_result = game_master.act(
         action_spec=entity_lib.ActionSpec(
             call_to_action=self._call_to_next_action_spec.format(
                 name=next_object_name),
             output_type=entity_lib.OutputType.NEXT_ACTION_SPEC,
         )
     )
+    next_action_spec_string = next_action_spec_string_result[0] if isinstance(next_action_spec_string_result, tuple) else next_action_spec_string_result
     if log is not None and hasattr(game_master, 'get_last_log'):
       assert hasattr(game_master, 'get_last_log')  # Assertion for pytype
       log_entry['next_action_spec'] = game_master.get_last_log()
@@ -143,12 +146,13 @@ class Sequential(engine_lib.Engine):
           f'The suggested action or event to resolve was: {putative_event}',
           _PRINT_COLOR))
     game_master.observe(observation=f'{PUTATIVE_EVENT_TAG} {putative_event}')
-    result = game_master.act(
+    resolve_result = game_master.act(
         action_spec=entity_lib.ActionSpec(
             call_to_action=self._call_to_resolve,
             output_type=entity_lib.OutputType.RESOLVE,
         )
     )
+    result = resolve_result[0] if isinstance(resolve_result, tuple) else resolve_result
     game_master.observe(observation=f'{EVENT_TAG} {result}')
     if verbose:
       print(termcolor.colored(
@@ -158,13 +162,14 @@ class Sequential(engine_lib.Engine):
                 game_master: entity_lib.Entity,
                 verbose: bool = False) -> bool:
     """Decide if the episode should terminate."""
-    should_terminate_string = game_master.act(
+    should_terminate_string_result = game_master.act(
         action_spec=entity_lib.ActionSpec(
             call_to_action=self._call_to_check_termination,
             output_type=entity_lib.OutputType.TERMINATE,
             options=tuple(entity_lib.BINARY_OPTIONS.values()),
         )
     )
+    should_terminate_string = should_terminate_string_result[0] if isinstance(should_terminate_string_result, tuple) else should_terminate_string_result
     if verbose:
       print(termcolor.colored(
           f'Terminate? {should_terminate_string}', _PRINT_COLOR))
@@ -185,13 +190,14 @@ class Sequential(engine_lib.Engine):
     game_masters_by_name = {
         game_master_.name: game_master_ for game_master_ in game_masters
     }
-    next_game_master_name = game_master.act(
+    next_game_master_name_result = game_master.act(
         action_spec=entity_lib.ActionSpec(
             call_to_action=self._call_to_next_game_master,
             output_type=entity_lib.OutputType.NEXT_GAME_MASTER,
             options=tuple(game_masters_by_name.keys()),
         )
     )
+    next_game_master_name = next_game_master_name_result[0] if isinstance(next_game_master_name_result, tuple) else next_game_master_name_result
     if verbose:
       print(termcolor.colored(
           f'Game master: {next_game_master_name}', _PRINT_COLOR))

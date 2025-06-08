@@ -17,6 +17,7 @@
 from collections.abc import Collection, Sequence
 import os
 import time
+from typing import Optional, Any
 
 from concordia.language_model import language_model
 from concordia.utils import sampling
@@ -91,13 +92,14 @@ class MistralLanguageModel(language_model.LanguageModel):
       terminators: Collection[str] = language_model.DEFAULT_TERMINATORS,
       temperature: float = language_model.DEFAULT_TEMPERATURE,
       seed: int | None = None,
-  ) -> str:
+  ) -> tuple[str, Optional[Any]]:
     if not terminators:
       # It is essential to set a terminator since these models otherwise always
       # continue till max_tokens.
       terminators = ('\n\n',)
 
-    result = ''
+    result_text = ''
+    logprobs = None
     for attempts in range(_MAX_CHAT_ATTEMPTS):
       if attempts > 0:
         if attempts >= _NUM_SILENT_ATTEMPTS:
@@ -119,16 +121,21 @@ class MistralLanguageModel(language_model.LanguageModel):
           print(f'  Exception: {err}')
         continue
       else:
-        result = response.choices[0].message.content
+        result_text = response.choices[0].message.content
+        # Try to access logprobs, default to None if not available
+        try:
+            logprobs = response.choices[0].logprobs
+        except (AttributeError, IndexError):
+            logprobs = None
         break
 
     if self._measurements is not None:
       self._measurements.publish_datum(
           self._channel,
-          {'raw_text_length': len(result)},
+          {'raw_text_length': len(result_text)},
       )
 
-    return result
+    return result_text, logprobs
 
   def _chat_text(
       self,
@@ -138,7 +145,7 @@ class MistralLanguageModel(language_model.LanguageModel):
       terminators: Collection[str] = language_model.DEFAULT_TERMINATORS,
       temperature: float = language_model.DEFAULT_TEMPERATURE,
       seed: int | None = None,
-  ) -> str:
+  ) -> tuple[str, Optional[Any]]:
     del terminators
     messages = [
         models.SystemMessage(
@@ -182,7 +189,13 @@ class MistralLanguageModel(language_model.LanguageModel):
           print(f'  Exception: {err}')
         continue
       else:
-        return response.choices[0].message.content
+        # Try to access logprobs, default to None if not available
+        logprobs = None
+        try:
+            logprobs = response.choices[0].logprobs
+        except (AttributeError, IndexError):
+            logprobs = None
+        return response.choices[0].message.content, logprobs
 
     raise language_model.InvalidResponseError(
         (f'Too many chat attempts.\n Prompt: {prompt}')
@@ -198,11 +211,14 @@ class MistralLanguageModel(language_model.LanguageModel):
       temperature: float = language_model.DEFAULT_TEMPERATURE,
       timeout: float = language_model.DEFAULT_TIMEOUT_SECONDS,
       seed: int | None = None,
-  ) -> str:
+  ) -> tuple[str, Optional[Any]]:
     del timeout
 
+    response_text: str
+    logprobs: Optional[Any] = None
+
     if self._completion_for_text:
-      response = self._complete_text(
+      response_text, logprobs = self._complete_text(
           prompt=prompt,
           suffix='.\n',
           max_tokens=max_tokens,
@@ -211,7 +227,7 @@ class MistralLanguageModel(language_model.LanguageModel):
           seed=seed,
       )
     else:
-      response = self._chat_text(
+      response_text, logprobs = self._chat_text(
           prompt=prompt,
           max_tokens=max_tokens,
           terminators=terminators,
@@ -222,9 +238,9 @@ class MistralLanguageModel(language_model.LanguageModel):
     if self._measurements is not None:
       self._measurements.publish_datum(
           self._channel,
-          {'raw_text_length': len(response)},
+          {'raw_text_length': len(response_text)},
       )
-    return response
+    return response_text, logprobs
 
   @override
   def sample_choice(

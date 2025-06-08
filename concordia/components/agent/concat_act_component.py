@@ -128,8 +128,11 @@ class ConcatActComponent(
       final_output_string = reasoning_output
       self._log(final_output_string, prompt, used_reasoning_component=True)
 
-    elif action_spec.output_type in entity_lib.FREE_ACTION_TYPES:
-      llm_response = prompt.open_question(
+    elif action_spec.output_type in entity_lib.FREE_ACTION_TYPES or \
+         action_spec.output_type == entity_lib.OutputType.MAKE_OBSERVATION or \
+         action_spec.output_type == entity_lib.OutputType.NEXT_ACTION_SPEC or \
+         action_spec.output_type == entity_lib.OutputType.RESOLVE:
+      llm_response_text, _ = prompt.open_question(
           call_to_action_formatted,
           max_tokens=2200,
           answer_prefix=llm_answer_prefix,
@@ -137,9 +140,9 @@ class ConcatActComponent(
           question_label='Exercise',
       )
       if llm_answer_prefix:
-          final_output_string = llm_answer_prefix + llm_response
+          final_output_string = llm_answer_prefix + llm_response_text
       else:
-          final_output_string = llm_response
+          final_output_string = llm_response_text
 
     elif action_spec.output_type in entity_lib.CHOICE_ACTION_TYPES:
       idx = prompt.multiple_choice_question(
@@ -148,13 +151,13 @@ class ConcatActComponent(
       final_output_string = action_spec.options[idx]
 
     elif action_spec.output_type == entity_lib.OutputType.FLOAT:
-      sampled_text = prompt.open_question(
+      sampled_text_val, _ = prompt.open_question(
           call_to_action_formatted,
           max_tokens=200,
           answer_prefix=llm_answer_prefix,
       )
       try:
-        parsed_float_str = str(float(sampled_text.strip()))
+        parsed_float_str = str(float(sampled_text_val.strip()))
       except ValueError:
         parsed_float_str = '0.0'
 
@@ -166,7 +169,7 @@ class ConcatActComponent(
     else:
       raise NotImplementedError(
           f'Unsupported output type: {action_spec.output_type}. '
-          'Supported output types are: FREE, CHOICE, and FLOAT.'
+          'Supported output types are: FREE, CHOICE, FLOAT, MAKE_OBSERVATION, NEXT_ACTION_SPEC, RESOLVE.'
       )
 
     self._log(final_output_string, prompt)

@@ -70,12 +70,12 @@ def extract_direct_quote(
             f'Does the text state exactly what {active_player_name} said or '
             'wrote?'))
     if proceed_with_exact:
-      direct_quote = inner_chain_of_thought.open_question(
+      direct_quote_text, _ = inner_chain_of_thought.open_question(
           question=f'What exactly did {active_player_name} say or write?',
           max_tokens=2500,
           terminators=(),
       )
-      chain_of_thought.statement(f'[direct quote] {direct_quote}')
+      chain_of_thought.statement(f'[direct quote] {direct_quote_text}')
 
   return action_attempt
 
@@ -106,9 +106,10 @@ def determine_success_and_why(
     chain_of_thought.statement('The attempt succeeded.')
   else:
     chain_of_thought.statement('The attempt failed.')
-    why_failed = chain_of_thought.open_question(
+    why_failed_text, _ = chain_of_thought.open_question(
         'Why did the attempt fail?',
     )
+    why_failed = why_failed_text # Assign the text part
 
   if action_attempt[-1] == '.':
     action_attempt = action_attempt[:-1] + ','
@@ -136,12 +137,12 @@ def result_to_causal_statement(
   Returns:
   """
   del active_player_name
-  effect = chain_of_thought.open_question(
+  effect_text, _ = chain_of_thought.open_question(
       'Because of that, what happens as a result?',
       max_tokens=1200,
   )
-  raw_causal_statement = f'{event} Because of that, {effect}'
-  causal_statement = chain_of_thought.open_question(
+  raw_causal_statement = f'{event} Because of that, {effect_text}'
+  causal_statement_text, _ = chain_of_thought.open_question(
       'Rewrite the following statements to be one sentence and to better '
       'highlight cause and effect. Do not express uncertainty (e.g. say '
       + '"Francis released the demon" not "Francis could release the demon" '
@@ -150,7 +151,7 @@ def result_to_causal_statement(
       + raw_causal_statement
       + '\n'
   )
-  return causal_statement
+  return causal_statement_text
 
 
 def attempt_to_result(
@@ -169,12 +170,12 @@ def attempt_to_result(
     string describing the outcome
   """
   del active_player_name
-  result = chain_of_thought.open_question(
+  result_text, _ = chain_of_thought.open_question(
       'What happens as a result of the attempted action?'
       ' Take into account the location and status of each player.',
       max_tokens=1200,
   )
-  raw_causal_statement = f'{action_attempt} Because of that, {result}'
+  raw_causal_statement = f'{action_attempt} Because of that, {result_text}'
   return raw_causal_statement
 
 
@@ -193,15 +194,15 @@ def attempt_to_most_likely_outcome(
   Returns:
     string describing the outcome
   """
-  _ = chain_of_thought.open_question(
+  _, _ = chain_of_thought.open_question(
       f'Where is {active_player_name}?',
       max_tokens=1200,
   )
-  _ = chain_of_thought.open_question(
+  _, _ = chain_of_thought.open_question(
       f'What is {active_player_name} trying to do?',
       max_tokens=1200,
   )
-  _ = chain_of_thought.open_question(
+  _, _ = chain_of_thought.open_question(
       f"List some possible direct consequences of {active_player_name}'s "
       'action. Never assume any other person will take a voluntary action. '
       'Be specific and concrete. Never beg the question. For instance, it is '
@@ -209,11 +210,11 @@ def attempt_to_most_likely_outcome(
       'what Alex finds. For example "Alex finds a teddy bear".',
       max_tokens=3000,
   )
-  result = chain_of_thought.open_question(
+  result_text, _ = chain_of_thought.open_question(
       'Which outcome is the most likely?',
       max_tokens=1200,
   )
-  raw_causal_statement = f'{action_attempt} Because of that, {result}'
+  raw_causal_statement = f'{action_attempt} Because of that, {result_text}'
   return raw_causal_statement
 
 
@@ -233,7 +234,7 @@ def result_to_who_what_where(
   """
   del active_player_name
   chain_of_thought.statement(event)
-  causal_statement = chain_of_thought.open_question(
+  causal_statement_text, _ = chain_of_thought.open_question(
       'Rewrite the statements above to be one sentence and to better highlight'
       ' the main person the event is about, where and what they did, and what'
       ' happened as a result. Do not express uncertainty (e.g. say "Francis'
@@ -241,7 +242,7 @@ def result_to_who_what_where(
       ' may have been opened").\n',
       max_tokens=1500,
   )
-  return causal_statement
+  return causal_statement_text
 
 
 def result_to_effect_caused_by_active_player(
@@ -259,21 +260,17 @@ def result_to_effect_caused_by_active_player(
   Returns:
   """
   chain_of_thought.statement(event)
-  causal_statement = chain_of_thought.open_question(
-      'Rewrite the statements above to be one sentence and to better highlight '
-      f'what {active_player_name} did, and what happened as a result. '
-      'Do not express uncertainty (e.g. say '
-      '"Francis opened the door" not "Francis could open the door" '
-      'and not "The door may have been opened"). Remember that the role of '
-      'the game master in a tabletop role-playing game is akin to the author '
-      'for all parts of the story not written by the player characters. '
-      'Therefore, it is critical always to take a stance on what is happening '
-      'and invent when necessary. For instance, if Francis opens a door to a '
-      'room no one visited before then the game master should invent what is '
-      'in the room using common sense and knowledge of the game world.',
+  effect_string_text, _ = chain_of_thought.open_question(
+      'Rewrite the statement above to highlight what {active_player_name} did '
+      'and what happened as a direct result. Do not express uncertainty (e.g. '
+      'say "Francis opened the door" not "Francis could open the door" and '
+      'not "The door may have been opened").\n'
+      'Statement: '
+      + event
+      + '\n',
       max_tokens=1500,
   )
-  return causal_statement
+  return effect_string_text
 
 
 def restore_direct_quote(
