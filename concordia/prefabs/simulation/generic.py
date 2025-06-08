@@ -134,7 +134,7 @@ class Simulation(simulation_lib.Simulation):
     The function returns a copy of the entities list to avoid modifying the
     original list. However, the entities are not deep copied, so changes
     to the entities will be reflected in the simulation.
-    
+
     Returns:
       A list of entities.
     """
