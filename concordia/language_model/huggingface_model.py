@@ -16,8 +16,6 @@
 
 from collections.abc import Collection, Mapping, Sequence
 from typing import Any, Optional
-
-import torch
 import huggingface_hub
 import transformers
 from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
@@ -30,6 +28,17 @@ from concordia.utils import text
 DEFAULT_TIMEOUT_SECONDS = 120.0
 MAX_MULTIPLE_CHOICE_ATTEMPTS = 20
 MAX_TOKENS_FOR_CHOICE = 32
+
+_DEFAULT_SYSTEM_MESSAGE = (
+    'Continue the user\'s sentences. Never repeat their starts. Do not repeat yourself either. For example, '
+    'when you see \'Bob is\', you should continue the sentence after '
+    'the word \'is\'. Here are some more examples: \'Question: Is Jake a '
+    'turtle?\nAnswer: Jake is \' should be completed as \'not a turtle.\' and '
+    '\'Question: What is Priya doing right now?\nAnswer: Priya is currently \' '
+    'should be completed as \'working on repairing the sink.\'. Notice that '
+    'it is OK to be creative with how you finish the user\'s sentences. The '
+    'most important thing is to always continue in the same style as the user.'
+)
 
 
 class HuggingFaceLanguageModel(language_model.LanguageModel):
@@ -48,6 +57,7 @@ class HuggingFaceLanguageModel(language_model.LanguageModel):
       channel: str = 'huggingface_language_model',
       max_tokens_for_choice: int = MAX_TOKENS_FOR_CHOICE,
       api_key: str | None = None,
+      use_bnb_4bit: bool = False,
   ):
     """Initializes the HuggingFace language model.
 
@@ -77,19 +87,23 @@ class HuggingFaceLanguageModel(language_model.LanguageModel):
       self._tokenizer.pad_token = self._tokenizer.eos_token
       self._tokenizer.pad_token_id = self._tokenizer.eos_token_id
 
-    # Load model
-    bnb_config = BitsAndBytesConfig(
+
+    if use_bnb_4bit:
+      bnb_config = BitsAndBytesConfig(
         load_in_4bit=True,
         bnb_4bit_use_double_quant=True,
         bnb_4bit_quant_type="nf4",
         bnb_4bit_compute_dtype="float16",
-    )
-    model = AutoModelForCausalLM.from_pretrained(
+      )
+      model = AutoModelForCausalLM.from_pretrained(
         self._model_identifier,
         quantization_config=bnb_config,
         device_map="auto",
         trust_remote_code=True,
     )
+    else:
+      bnb_config = None
+      model = model_name
 
     # Load pipeline
     self._pipeline = transformers.pipeline(
@@ -109,15 +123,22 @@ class HuggingFaceLanguageModel(language_model.LanguageModel):
       timeout: float = DEFAULT_TIMEOUT_SECONDS, # pylint: disable=unused-argument
       seed: int | None = None, # pylint: disable=unused-argument
   ) -> tuple[str, Optional[Mapping[str, Any]]]:
-    generation_kwargs = {}
     if temperature == 0:
-        generation_kwargs = {"do_sample": False}
+      generation_kwargs = {"do_sample": False}
     elif temperature > 0:
-        generation_kwargs = {"temperature": temperature, "do_sample": True}
+      generation_kwargs = {
+          "temperature": temperature,
+          "do_sample": True,
+          "top_p": 0.9
+      }
+    else:
+      generation_kwargs = {"do_sample": False}
+
+    full_prompt = f"{_DEFAULT_SYSTEM_MESSAGE}\n\n{prompt}"
 
     try:
       response = self._pipeline(
-          prompt,
+          full_prompt,
           max_new_tokens=max_tokens,
           pad_token_id=self._tokenizer.pad_token_id,
           **generation_kwargs
@@ -127,8 +148,8 @@ class HuggingFaceLanguageModel(language_model.LanguageModel):
          isinstance(response[0], dict) and 'generated_text' in response[0]:
         full_text = response[0]['generated_text']
 
-        if full_text.startswith(prompt):
-          generated_text_only = full_text[len(prompt):]
+        if full_text.startswith(full_prompt):
+          generated_text_only = full_text[len(full_prompt):]
         else:
           generated_text_only = full_text
 
