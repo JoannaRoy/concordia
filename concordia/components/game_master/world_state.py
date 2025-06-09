@@ -109,7 +109,7 @@ class WorldState(
       prompt.statement(f'\n{component_states}\n')
       prompt.statement(f'State prior to the latest event:\n{self._state}')
       prompt.statement(f'The latest event: {event}')
-      important_variables_str = prompt.open_question(
+      important_variables_str, _ = prompt.open_question(
           question=(
               'Given the context above, what state variables are important '
               'to write down now so that they can be used later? '
@@ -157,7 +157,7 @@ class Locations(
       entity_names: Names of entities to track locations for.
       prompt: description of all locations to be specifically represented in the
         world. This is used to prompt the model to generate concrete variables
-        representing the locations and their properties (e.g. their topology). 
+        representing the locations and their properties (e.g. their topology).
       components: Keys of components to condition entity locations on.
       pre_act_label: Prefix to add to the output of the component when called
         in `pre_act`.
@@ -174,7 +174,7 @@ class Locations(
 
     chain_of_thought = interactive_document.InteractiveDocument(self._model)
     chain_of_thought.statement(self._prompt)
-    locations_str = chain_of_thought.open_question(
+    locations_str, _ = chain_of_thought.open_question(
         question=(
             'Given the context above, what locations are important to write '
             'down now so that they can be used later? Respond with a '
@@ -260,7 +260,7 @@ class Locations(
       prompt.statement('Known location of each entity prior to the latest '
                        f'event:\n{self._entity_locations}')
       prompt.statement(f'The latest event: {event}')
-      entity_locations_str = prompt.open_question(
+      entity_locations_str, _ = prompt.open_question(
           question=(
               'Given the context above, where are the named people currently '
               'located? Respond with an empty string for anyone whose '
@@ -322,7 +322,7 @@ class GenerativeClock(
     chain_of_thought = interactive_document.InteractiveDocument(self._model)
     chain_of_thought.statement(self._prompt)
     chain_of_thought.statement(f'Start time: {start_time}')
-    self._clock_description = chain_of_thought.open_question(
+    self._clock_description, _ = chain_of_thought.open_question(
         question=(
             'Given the context above, when is the clock updated? How are times '
             'represented internally? (usually as a number of steps). And, how '
@@ -405,7 +405,7 @@ class GenerativeClock(
       prompt.statement(f'The next event: {event}')
       prompt.statement('After the next event, the number of simulation steps '
                        f'will be: {self._num_steps}.')
-      self._time = prompt.open_question(
+      self._time, _ = prompt.open_question(
           question=(
               'Given the context above, and after the event, what is the new '
               'time? Never respond with a sentence like "the time is unchanged"'

@@ -133,9 +133,10 @@ class SomaticState(component.Component):
           ' hungry do not mention hunger at all.\nReadings:\n'
           + self._state
       )
-      self._state = f'{self._agent_name} is ' + self._model.sample_text(
+      response, _ = self._model.sample_text(
           f'{prompt}\n {self._agent_name} is ', max_tokens=500
       )
+      self._state = f'{self._agent_name} is ' + response
 
     if self._verbose:
       print(termcolor.colored(self._state, 'green'), end='')

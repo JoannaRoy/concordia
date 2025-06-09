@@ -114,7 +114,7 @@ class AffectReflection(action_spec_ignored.ActionSpecIgnored):
 
     question_list = []
 
-    questions = salience_chain_of_thought.open_question(
+    questions_text, _ = salience_chain_of_thought.open_question(
         (
             f'Recent feelings: {self._previous_pre_act_value} \n'
             + f"{agent_name}'s relevant memory:\n"
@@ -128,7 +128,8 @@ class AffectReflection(action_spec_ignored.ActionSpecIgnored):
         answer_prefix='- ',
         max_tokens=3000,
         terminators=(),
-    ).split('\n')
+    )
+    questions = questions_text.split('\n')
 
     question_related_mems = []
     for question in questions:
@@ -147,7 +148,7 @@ class AffectReflection(action_spec_ignored.ActionSpecIgnored):
     question_related_mems = '\n'.join(question_related_mems)
 
     chain_of_thought = interactive_document.InteractiveDocument(self._model)
-    insight = chain_of_thought.open_question(
+    insight, _ = chain_of_thought.open_question(
         f'Selected memories:\n{question_related_mems}\n'
         + f'Recent feelings: {self._previous_pre_act_value} \n\n'
         + 'New context:\n'

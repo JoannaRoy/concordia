@@ -145,7 +145,7 @@ class SimPlan(component.Component):
       goal_mention = '.'
       if self._goal_component:
         goal_mention = ', keep in mind the goal.'
-      self._current_plan = prompt.open_question(
+      self._current_plan, _ = prompt.open_question(
           f"Write {self._agent_name}'s plan for {self._horizon}. Please,"
           ' provide a detailed schedule'
           + goal_mention

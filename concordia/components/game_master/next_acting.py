@@ -387,7 +387,7 @@ class NextActionSpec(
           'Note that prompts can be of any length, they are typically '
           'questions, and multiple choice answer responses must be '
           'provided in the form of a comma-separated list of options.')
-      result = prompt.open_question(
+      result, _ = prompt.open_question(
           question=self._call_to_next_action_spec.format(name=active_player),
           max_tokens=1024,
           terminators=())

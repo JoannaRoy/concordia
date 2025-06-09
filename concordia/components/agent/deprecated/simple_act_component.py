@@ -97,7 +97,7 @@ class SimpleActComponent(entity_component.ActingComponent):
           f"{context}\n\n{action_spec.call_to_action}\n",
           action_spec.options)
       return response
-    sampled_text = self._model.sample_text(
+    sampled_text, _ = self._model.sample_text(
         f"{context}\n\n{action_spec.call_to_action}\n",
     )
     if action_spec.output_type == entity_lib.OutputType.FREE:

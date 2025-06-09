@@ -110,7 +110,7 @@ class DirectEffect(component.Component):
               f'What does {player_name} know about the event?',
               max_tokens=2500,
           )
-          how_player_saw_event_first_person = player_doc.open_question(
+          how_player_saw_event_first_person, _ = player_doc.open_question(
               f"Summarize the event from {player_name}'s "
               + 'perspective using third-person limited point of view. '
               + 'If the event contains a direct quotation of anything said '
@@ -128,7 +128,7 @@ class DirectEffect(component.Component):
         else:  # not known
           if self._verbose:
             self._print(f'\n{player_name} not known.')
-          effect_despite_ignorance = player_doc.open_question(
+          effect_despite_ignorance, _ = player_doc.open_question(
               f"How does the event affect {player_name}'s status, despite them"
               ' not knowing about it?',
               max_tokens=2500,

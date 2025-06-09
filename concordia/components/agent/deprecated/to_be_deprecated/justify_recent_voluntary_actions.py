@@ -76,7 +76,7 @@ class JustifyRecentVoluntaryActions(component.Component):
       model: The language model to use.
       memory: The memory to use.
       agent_name: The name of the agent.
-      components: 
+      components:
       audiences:
       clock_now: time callback to use for the state.
       num_memories_to_retrieve: The number of memories to retrieve.
@@ -170,7 +170,7 @@ class JustifyRecentVoluntaryActions(component.Component):
         max_tokens=2000,
         terminators=(),
     )
-    most_salient_justification = justification_chain_of_thought.open_question(
+    most_salient_justification, _ = justification_chain_of_thought.open_question(
         question=(
             f"Given {self._agent_name}'s current situation, which "
             + 'justification is most salient to them? Describe the action '

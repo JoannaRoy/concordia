@@ -258,7 +258,7 @@ class InteractiveDocument(document.Document):
     )
     if forced_response is None:
       self._response(f'{answer_label}s:\n1. ')
-      candidates = self._model.sample_text(
+      candidates, _ = self._model.sample_text(
           prompt=self._model_view.text(),
           max_tokens=max_tokens * num_samples,
           terminators=[],

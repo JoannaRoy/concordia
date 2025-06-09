@@ -291,7 +291,7 @@ def restore_direct_quote(
   chain_of_thought.statement(
       '\n\nCandidate event statement which may have lost direct '
       f'quotes: {event}')
-  event_with_quote = chain_of_thought.open_question(
+  event_with_quote, _ = chain_of_thought.open_question(
       question=(
           'Incorporate the exact text of anything said or written '
           + f'by {active_player_name} into the candidate event statement. '
@@ -338,7 +338,7 @@ class AccountForAgencyOfOthers:
     tmp_chain_of_thought = interactive_document.InteractiveDocument(
         model=self._model)
     tmp_chain_of_thought.statement(f'Event: {candidate_event}')
-    _ = tmp_chain_of_thought.open_question(
+    _, _ = tmp_chain_of_thought.open_question(
         'Describe all voluntary actions taken by any individual in the '
         + 'event above.',
         max_tokens=1500,
@@ -352,7 +352,7 @@ class AccountForAgencyOfOthers:
     possible_outcomes = []
     players_who_would_not = []
     if voluntary_act_of_inactive_player:
-      inactive_players_who_acted_str = tmp_chain_of_thought.open_question(
+      inactive_players_who_acted_str, _ = tmp_chain_of_thought.open_question(
           question=(
               f'Aside from {active_player_name}, which individuals took a '
               + 'voluntary action?\n'
@@ -366,7 +366,7 @@ class AccountForAgencyOfOthers:
         player_ = player.strip(' ')
         if player_ in self._player_names:
           tmp_chain_of_thought_per_player = tmp_chain_of_thought.copy()
-          what_did_they_do = tmp_chain_of_thought_per_player.open_question(
+          what_did_they_do, _ = tmp_chain_of_thought_per_player.open_question(
               f'In one sentence, what did {player_} do?',
               answer_prefix=f'{player_} ',
           )
@@ -396,7 +396,7 @@ class AccountForAgencyOfOthers:
                 'A reason the above event did not occur is the fact '
                 + f'that {player_} would not have acted that way.'
             )
-            outcome = no_chain_of_thought.open_question(
+            outcome, _ = no_chain_of_thought.open_question(
                 'Given the above, what happened instead? The answer should '
                 + f'be what would have happened but for {player_}. Answer in '
                 + 'the form of a simple statement of cause and effect.'
@@ -416,7 +416,7 @@ class AccountForAgencyOfOthers:
         chain_of_thought.statement(
             'Therefore a likely effect of ' +
             f"{active_player_name}'s attempted action is: " + outcome)
-      candidate_event = chain_of_thought.open_question(
+      candidate_event, _ = chain_of_thought.open_question(
           f"What happened as a direct result of {active_player_name}'s "
           + 'attempted action? Take into account the reactions of '
           + f'{players_who_would_not_str}. Highlight how '

@@ -214,7 +214,7 @@ class Conversation(component.Component):
     )
 
     if npcs_exist:
-      npcs = prompt.open_question(
+      npcs, _ = prompt.open_question(
           'Provide the list of additional individuals in the conversation '
           + 'as a comma-separated list. For example: "bartender, merchant" '
           + 'or "accountant, pharmacist, fishmonger". These additional '
@@ -242,7 +242,7 @@ class Conversation(component.Component):
 
   def _generate_convo_summary(self, convo: Sequence[str]):
     convo_list = list(convo)
-    summary = self._model.sample_text(
+    summary, _ = self._model.sample_text(
         '\n'.join(
             convo_list + ['Summarize the conversation above in one sentence.'],
         ),
@@ -384,7 +384,7 @@ class Conversation(component.Component):
             'answer to the question.\n'
         )
         document.statement(key_question_mechanic_explanation)
-        key_question = document.open_question(
+        key_question, _ = document.open_question(
             question=(
                 'What key question may have been resolved by the '
                 'conversation which the players will now role play? Note that '

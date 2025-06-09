@@ -104,13 +104,13 @@ class PersonBySituation(component.Component):
       question = f'{question}'
 
     old_state = self._state
-    self._state = prompt.open_question(
+    response_text, _ = prompt.open_question(
         question,
         answer_prefix=f'{self._agent_name} would ',
         max_tokens=1000,
     )
 
-    self._state = f'{self._agent_name} would {self._state}'
+    self._state = f'{self._agent_name} would {response_text}'
 
     if old_state != self._state:
       self._memory.add(f'[intent reflection] {self._state}')

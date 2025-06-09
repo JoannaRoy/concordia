@@ -114,13 +114,13 @@ class QuestionOfRecentMemories(action_spec_ignored.ActionSpecIgnored):
     prompt.statement(component_states)
 
     question = self._question.format(agent_name=agent_name)
-    result = prompt.open_question(
+    result_text, _ = prompt.open_question(
         question,
         answer_prefix=self._answer_prefix.format(agent_name=agent_name),
         max_tokens=1000,
         terminators=self._terminators,
     )
-    result = self._answer_prefix.format(agent_name=agent_name) + result
+    result = self._answer_prefix.format(agent_name=agent_name) + result_text
 
     if self._add_to_memory:
       memory.add(f'{self._memory_tag} {result}', metadata={})

@@ -163,7 +163,7 @@ class VertexAI(language_model.LanguageModel):
               {"raw_text_length": len(result)},
           )
 
-        return result
+        return result, None
 
       except Exception as err:  # pylint: disable=broad-exception-caught
         if attempts >= _NUM_SILENT_ATTEMPTS:
@@ -195,7 +195,7 @@ class VertexAI(language_model.LanguageModel):
           attempts, _MAX_MULTIPLE_CHOICE_ATTEMPTS
       )
 
-      sample = self.sample_text(prompt, temperature=temperature, seed=seed)
+      sample, _ = self.sample_text(prompt, temperature=temperature, seed=seed)
 
       # clean up the sample from newlines and spaces
       sample = sample.replace("\n", "").replace(" ", "")

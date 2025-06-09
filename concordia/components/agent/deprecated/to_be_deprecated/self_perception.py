@@ -107,7 +107,7 @@ class SelfPerception(component.Component):
         f'Given the above, what kind of person is {self._agent_name}?'
     )
     old_state = self._state
-    self._state = prompt.open_question(
+    self._state, _ = prompt.open_question(
         question,
         answer_prefix=f'{self._agent_name} is ',
         max_tokens=1000,

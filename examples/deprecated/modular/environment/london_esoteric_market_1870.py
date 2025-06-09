@@ -151,7 +151,7 @@ def get_shared_memories_and_context(
 
   # The shared context will be used for the NPC context. It reflects general
   # knowledge and is possessed by all characters.
-  shared_context = model.sample_text(
+  shared_context, _ = model.sample_text(
       'Summarize the following passage in a concise and insightful fashion. It '
       'is OK to omit details that seem less important:\n'
       + 'The year is 1870. The place is London.\n'

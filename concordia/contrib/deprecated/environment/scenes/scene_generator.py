@@ -63,7 +63,7 @@ class SceneGenerator:
         ' based model can respond to the situation. Do not include'
         ' instructions or a title in the output.'
     )
-    generated_premise = model.sample_text(
+    generated_premise, _ = model.sample_text(
         prompt, max_tokens=3500,
     )
 

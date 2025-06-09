@@ -238,7 +238,7 @@ class DailyActivities(component.Component):
           )
 
           cloned_thought_chain = chain_of_thought.copy()
-          fractions_string = cloned_thought_chain.open_question(
+          fractions_string, _ = cloned_thought_chain.open_question(
               question=(
                   f'What fraction of time will {self._current_player} '
                   'devote to each of the following activities: '

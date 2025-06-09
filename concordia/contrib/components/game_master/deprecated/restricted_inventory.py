@@ -231,7 +231,7 @@ class RestrictedInventory(gm_components.inventory.Inventory):
             question=f'Did any listed individual gain or lose {item_type}?',
         )
         if this_item_changed:
-          players_who_changed_str = chain_of_thought.open_question(
+          players_who_changed_str, _ = chain_of_thought.open_question(
               question=(
                   f'Which listed individuals gained or lost {item_type}?\n'
                   + 'Respond with a comma-separated list, for example: \n'
@@ -256,7 +256,7 @@ class RestrictedInventory(gm_components.inventory.Inventory):
                     'indicate that no one gained or lost anything.'
                 )
             )
-            players_inventory_changed_str = chain_of_thought.open_question(
+            players_inventory_changed_str, _ = chain_of_thought.open_question(
                 question=(
                     f'Which individuals gained or lost {item_type}? '
                     'Respond with a comma-separated list. It is OK to '
@@ -277,7 +277,7 @@ class RestrictedInventory(gm_components.inventory.Inventory):
             if formatted_player in self._player_names:
               prefix = f"[effect on {formatted_player}'s {self._name}]"
               many_or_much = _many_or_much_fn(self._is_count_noun[item_type])
-              amount = chain_of_thought.open_question(
+              amount, _ = chain_of_thought.open_question(
                   question=(
                       f'How {many_or_much} '
                       + f'{item_type} did {player} gain '

@@ -96,7 +96,7 @@ class SituationRepresentation(action_spec_ignored.ActionSpecIgnored):
       chain_of_thought.statement(f'Story fragments and world data:\n{mems}')
       self._add_components_if_any(chain_of_thought)
       chain_of_thought.statement(f'Events continue after {current_time}')
-      self._situation_thus_far = chain_of_thought.open_question(
+      self._situation_thus_far, _ = chain_of_thought.open_question(
           question=(
               'Narratively summarize the story fragments and world data. Give '
               'special emphasis to atypical features of the setting such as '
@@ -124,7 +124,7 @@ class SituationRepresentation(action_spec_ignored.ActionSpecIgnored):
       )
     else:
       chain_of_thought.statement(f'Notes:\n{result}')
-    self._situation_thus_far = chain_of_thought.open_question(
+    self._situation_thus_far, _ = chain_of_thought.open_question(
         question=(
             'What situation does the protagonist find themselves in? '
             'Make sure to provide enough detail to give the '

@@ -238,7 +238,7 @@ class Inventory(component.Component):
               question=f'Did any listed individual gain or lose {item_type}?',
           )
           if this_item_changed:
-            players_who_changed_str = chain_of_thought.open_question(
+            players_who_changed_str, _ = chain_of_thought.open_question(
                 question=(
                     f'Which individuals gained or lost {item_type}?\n'
                     + 'Respond with a comma-separated list, for example: \n'

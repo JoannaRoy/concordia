@@ -150,7 +150,7 @@ class DialecticalReflection(component.Component):
     else:
       thesis_question += '?'
 
-    thesis = thesis_chain.open_question(
+    thesis, _ = thesis_chain.open_question(
         thesis_question,
         max_tokens=1200,
         terminators=(),
@@ -189,7 +189,7 @@ class DialecticalReflection(component.Component):
         max_tokens=2000,
         terminators=(),
     )
-    synthesis = synthesis_chain.open_question(
+    synthesis, _ = synthesis_chain.open_question(
         question=(
             f'How might {self._agent_name} summarize the synthesis '
             + 'above as a bold new argument?'

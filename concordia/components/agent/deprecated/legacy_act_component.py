@@ -120,7 +120,7 @@ class ActComponent(entity_component.ActingComponent):
     )
     if action_spec.output_type == entity_lib.OutputType.FREE:
       output = self.get_entity().name + ' '
-      output += prompt.open_question(
+      response_text, _ = prompt.open_question(
           call_to_action,
           max_tokens=2200,
           answer_prefix=output,
@@ -130,6 +130,7 @@ class ActComponent(entity_component.ActingComponent):
           terminators=('" ', '\n'),
           question_label='Exercise',
       )
+      output += response_text
       self._log(output, prompt)
       return output
     elif action_spec.output_type == entity_lib.OutputType.CHOICE:
@@ -141,7 +142,7 @@ class ActComponent(entity_component.ActingComponent):
       return output
     elif action_spec.output_type == entity_lib.OutputType.FLOAT:
       prefix = self.get_entity().name + ' '
-      sampled_text = prompt.open_question(
+      sampled_text, _ = prompt.open_question(
           call_to_action,
           max_tokens=2200,
           answer_prefix=prefix,

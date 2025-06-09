@@ -413,7 +413,7 @@ def get_shared_memories_and_context(
 
   # The shared context will be used for the NPC context. It reflects general
   # knowledge and is possessed by all characters.
-  shared_context = model.sample_text(
+  shared_context, _ = model.sample_text(
       'Summarize the following passage in the craziest way possible. Really '
       'turn it up to 11. Most important is to maintain its madcap style:\n'
       + '\n'.join(shared_memories)

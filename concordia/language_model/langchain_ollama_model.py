@@ -98,7 +98,7 @@ class LangchainOllamaLanguageModel(language_model.LanguageModel):
           self._channel,
           {'raw_text_length': len(response)})
 
-    return response
+    return response, None
 
   @override
   def sample_choice(
@@ -116,7 +116,7 @@ class LangchainOllamaLanguageModel(language_model.LanguageModel):
       temperature = sampling.dynamically_adjust_temperature(
           attempts, _MAX_MULTIPLE_CHOICE_ATTEMPTS)
 
-      sample = self.sample_text(
+      sample, _ = self.sample_text(
           prompt_with_system_message,
           temperature=temperature,
           seed=seed,

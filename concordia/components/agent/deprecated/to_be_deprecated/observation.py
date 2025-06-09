@@ -191,7 +191,7 @@ class ObservationSummary(component.Component):
             self._prompt,
             answer_prefix=f'{self._agent_name} ',
             max_tokens=1200,
-        )
+        )[0]
     )
 
     if self._display_timeframe:

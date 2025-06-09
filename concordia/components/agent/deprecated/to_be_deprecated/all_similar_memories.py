@@ -88,7 +88,7 @@ class AllSimilarMemories(component.Component):
         for comp in self._components
     ])
     prompt.statement(f'Statements:\n{component_states}\n')
-    prompt_summary = prompt.open_question(
+    prompt_summary, _ = prompt.open_question(
         'Summarize the statements above.', max_tokens=750
     )
 
@@ -115,7 +115,7 @@ class AllSimilarMemories(component.Component):
     if self._clock_now is not None:
       question = f'The current date/time is: {self._clock_now()}.\n{question}'
     new_prompt = prompt.new()
-    self._state = new_prompt.open_question(
+    self._state, _ = new_prompt.open_question(
         f'{question}\nStatements:\n{mems}',
         max_tokens=2000,
         terminators=(),

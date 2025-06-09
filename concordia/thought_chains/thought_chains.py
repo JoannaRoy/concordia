@@ -69,7 +69,7 @@ def extract_direct_quote(
             f'Does the text state exactly what {active_player_name} said or '
             'wrote?'))
     if proceed_with_exact:
-      direct_quote = inner_chain_of_thought.open_question(
+      direct_quote, _ = inner_chain_of_thought.open_question(
           question=f'What exactly did {active_player_name} say or write?',
           max_tokens=2500,
           terminators=(),
@@ -105,7 +105,7 @@ def determine_success_and_why(
     chain_of_thought.statement('The attempt succeeded.')
   else:
     chain_of_thought.statement('The attempt failed.')
-    why_failed = chain_of_thought.open_question(
+    why_failed, _ = chain_of_thought.open_question(
         'Why did the attempt fail?',
     )
 
@@ -135,12 +135,12 @@ def result_to_causal_statement(
   Returns:
   """
   del active_player_name
-  effect = chain_of_thought.open_question(
+  effect, _ = chain_of_thought.open_question(
       'Because of that, what happens as a result?',
       max_tokens=1200,
   )
   raw_causal_statement = f'{event} Because of that, {effect}'
-  causal_statement = chain_of_thought.open_question(
+  causal_statement, _ = chain_of_thought.open_question(
       question=(
           'Rewrite the following statements to be one sentence and to better '
           'highlight cause and effect. Do not express uncertainty (e.g. say '
@@ -170,7 +170,7 @@ def attempt_to_result(
     string describing the outcome
   """
   del active_player_name
-  result = chain_of_thought.open_question(
+  result, _ = chain_of_thought.open_question(
       'What happens as a result of the attempted action?'
       ' Take into account the location and status of each player.',
       max_tokens=1200,
@@ -195,17 +195,17 @@ def attempt_to_most_likely_outcome(
   Returns:
     string describing the outcome
   """
-  _ = chain_of_thought.open_question(
+  _, _ = chain_of_thought.open_question(
       f'Where is {active_player_name}?',
       max_tokens=1200,
       terminators=(),
   )
-  _ = chain_of_thought.open_question(
+  _, _ = chain_of_thought.open_question(
       f'What is {active_player_name} trying to do?',
       max_tokens=1200,
       terminators=(),
   )
-  _ = chain_of_thought.open_question(
+  _, _ = chain_of_thought.open_question(
       f"List at least 3 possible direct consequences of {active_player_name}'s "
       'action. Never assume any other person will take a voluntary action. '
       'Be specific and concrete. Never beg the question. For instance, it is '
@@ -214,7 +214,7 @@ def attempt_to_most_likely_outcome(
       max_tokens=3000,
       terminators=(),
   )
-  result = chain_of_thought.open_question(
+  result, _ = chain_of_thought.open_question(
       'Which outcome is the most likely?',
       max_tokens=1200,
       terminators=(),
@@ -239,7 +239,7 @@ def result_to_who_what_where(
   """
   del active_player_name
   chain_of_thought.statement(event)
-  causal_statement = chain_of_thought.open_question(
+  causal_statement, _ = chain_of_thought.open_question(
       'Rewrite the statements above to better highlight'
       ' the main person the event is about, where and what they did, and what'
       ' happened as a result. Do not express uncertainty (e.g. say "Francis'
@@ -267,7 +267,7 @@ def result_to_effect_caused_by_active_player(
   Returns:
   """
   chain_of_thought.statement(event)
-  causal_statement = chain_of_thought.open_question(
+  causal_statement, _ = chain_of_thought.open_question(
       'Rewrite the statements above to be one sentence and to better highlight '
       f'what {active_player_name} did, and what happened as a result. '
       'Do not express uncertainty (e.g. say '
@@ -303,7 +303,7 @@ def restore_direct_quote(
   chain_of_thought.statement(
       '\n\nCandidate event statement which may have lost direct '
       f'quotes: {event}')
-  event_with_quote = chain_of_thought.open_question(
+  event_with_quote, _ = chain_of_thought.open_question(
       question=(
           'Incorporate the exact text of anything said or written '
           + f'by {active_player_name} into the candidate event statement. '
@@ -350,7 +350,7 @@ class AccountForAgencyOfOthers:
     tmp_chain_of_thought = interactive_document.InteractiveDocument(
         model=self._model)
     tmp_chain_of_thought.statement(f'Event: {candidate_event}')
-    _ = tmp_chain_of_thought.open_question(
+    _, _ = tmp_chain_of_thought.open_question(
         'Describe all voluntary actions taken by any individual in the '
         + 'event above.',
         max_tokens=1500,
@@ -364,7 +364,7 @@ class AccountForAgencyOfOthers:
     possible_outcomes = []
     players_who_would_not = []
     if voluntary_act_of_inactive_player:
-      inactive_players_who_acted_str = tmp_chain_of_thought.open_question(
+      inactive_players_who_acted_str, _ = tmp_chain_of_thought.open_question(
           question=(
               f'Aside from {active_player_name}, which individuals took a '
               + 'voluntary action?\n'
@@ -378,7 +378,7 @@ class AccountForAgencyOfOthers:
         player_ = player.strip(' ')
         if player_ in self._player_names:
           tmp_chain_of_thought_per_player = tmp_chain_of_thought.copy()
-          what_did_they_do = tmp_chain_of_thought_per_player.open_question(
+          what_did_they_do, _ = tmp_chain_of_thought_per_player.open_question(
               f'In one sentence, what did {player_} do?',
               answer_prefix=f'{player_} ',
           )
@@ -408,7 +408,7 @@ class AccountForAgencyOfOthers:
                 'A reason the above event did not occur is the fact '
                 + f'that {player_} would not have acted that way.'
             )
-            outcome = no_chain_of_thought.open_question(
+            outcome, _ = no_chain_of_thought.open_question(
                 'Given the above, what happened instead? The answer should '
                 + f'be what would have happened but for {player_}. Answer in '
                 + 'the form of a simple statement of cause and effect.'
@@ -428,7 +428,7 @@ class AccountForAgencyOfOthers:
         chain_of_thought.statement(
             'Therefore a likely effect of ' +
             f"{active_player_name}'s attempted action is: " + outcome)
-      candidate_event = chain_of_thought.open_question(
+      candidate_event, _ = chain_of_thought.open_question(
           f"What happened as a direct result of {active_player_name}'s "
           + 'attempted action? Take into account the reactions of '
           + f'{players_who_would_not_str}. Highlight how '
@@ -471,7 +471,7 @@ class Conversation:
     if not conversation_occurred:
       return candidate_event
 
-    participants_str = tmp_chain_of_thought.open_question(
+    participants_str, _ = tmp_chain_of_thought.open_question(
         question=('Who participated in the conversation? Respond in a '
                   'comma-separated list e.g. "Jacob,Sasha,Ishita". Use full '
                   'names if known.'),
@@ -501,7 +501,7 @@ class Conversation:
     chain_of_thought.statement(
         f'Contributions to the conversation:\n{contributions_str}\n'
     )
-    conversation = chain_of_thought.open_question(
+    conversation, _ = chain_of_thought.open_question(
         question=('Generate a conversation consistent with all the relevant '
                   'information above, especially the explicit contributions '
                   'of each participant and their underlying intentions. Only '
@@ -623,7 +623,7 @@ def get_action_category_and_player_capability(
       answers=categories,
   )
   category = categories[category_idx]
-  _ = chain_of_thought.open_question(
+  _, _ = chain_of_thought.open_question(
       question=(
           f'Is {active_player_name} proficient in actions of type {category} '
           'and currently able to perform them? Why or why not? Never refer '
@@ -657,7 +657,7 @@ def maybe_inject_narrative_push(
     return putative_event
 
   tmp_chain_of_thought = chain_of_thought.copy()
-  plausible_events = tmp_chain_of_thought.open_question(
+  plausible_events, _ = tmp_chain_of_thought.open_question(
       question=('Suggest five plausible events or complications to the '
                 'putative event being resolved that may now occur to move '
                 'the narrative forward. Put each one on a separate line. '
@@ -684,7 +684,7 @@ def maybe_inject_narrative_push(
   combined_plausible_event = (f'1. {putative_event}\n'
                               f'2. {additional_plausible_event}')
 
-  composite_event = chain_of_thought.open_question(
+  composite_event, _ = chain_of_thought.open_question(
       question=(f'Given:\n{combined_plausible_event}\n\nHow does 2 modify, '
                 'complicate, extend, or otherwise change the meaning of 1? '
                 'Answer in the form of an in-narrative compound event that '
@@ -710,7 +710,7 @@ def maybe_cut_to_next_scene(
 
   Returns:
   """
-  _ = chain_of_thought.open_question(
+  _, _ = chain_of_thought.open_question(
       question=('What is the current scene about? What is the narrative '
                 'function of the latest event to occur in the scene?'),
       max_tokens=1500,
@@ -751,7 +751,7 @@ def maybe_cut_to_next_scene(
           '(respond "No" to the question). **\n')
   )
   if cut_to_next_scene:
-    next_scene_and_time_till_it_starts = chain_of_thought.open_question(
+    next_scene_and_time_till_it_starts, _ = chain_of_thought.open_question(
         question=(
             'What duration should we declare to have passed '
             'before presenting the next truly compelling scene? What will '

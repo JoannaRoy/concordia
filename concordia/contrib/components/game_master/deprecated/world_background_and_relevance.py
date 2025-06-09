@@ -153,7 +153,7 @@ class WorldBackgroundAndRelevance(component.Component):
     )
     # Generate discrete factoids based on all of the above.
     example_elements = random.sample(elements, 3)
-    factoids_str = chain_of_thought.open_question(
+    factoids_str, _ = chain_of_thought.open_question(
         question=(
             'Now comes the critical step in this berzerk form of world '
             'building: chop up all the aforementioned comments, '
@@ -224,7 +224,7 @@ class WorldBackgroundAndRelevance(component.Component):
         for comp in self._components
     ])
     prompt.statement(f'Statements:\n{component_states}\n')
-    prompt_summary = prompt.open_question(
+    prompt_summary, _ = prompt.open_question(
         question='Summarize the statements above in a few sentences.',
         max_tokens=1500,
     )
@@ -258,13 +258,13 @@ class WorldBackgroundAndRelevance(component.Component):
     if self._clock_now is not None:
       question = f'The current date/time is: {self._clock_now()}.\n{question}'
 
-    self._state = new_prompt.open_question(
+    self._state, _ = new_prompt.open_question(
         question=f'{question}',
         max_tokens=2000,
         terminators=('\nQuestion',),
     )
     for player in self._players:
-      self._partial_states[player.name] = new_prompt.open_question(
+      self._partial_states[player.name], _ = new_prompt.open_question(
           question=(
               f'What part of the information above is salient to {player.name} '
               'right now? If none, then leave the answer blank.'
@@ -296,7 +296,7 @@ class WorldBackgroundAndRelevance(component.Component):
         'In light of the above, the following event may have great '
         'significance.\n')
     chain_of_thought.statement(f'Event: {event_statement}\n')
-    significance = chain_of_thought.open_question(
+    significance, _ = chain_of_thought.open_question(
         question="What is the event's significance?",
         answer_prefix='Because of it, ',
         max_tokens=1000,

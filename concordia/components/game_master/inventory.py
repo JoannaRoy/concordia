@@ -209,7 +209,7 @@ class Inventory(
         if proceed:
           new_inventories = dict(self._inventories)
           if self._financial:
-            _ = chain_of_thought.open_question(
+            _, _ = chain_of_thought.open_question(
                 question=(
                     'If the event mentions any financial transaction (buying or'
                     ' selling), what price(s) were involved? If no price(s)'
@@ -222,7 +222,7 @@ class Inventory(
                 question=f'Did any listed individual gain or lose {item_type}?',
             )
             if this_item_changed:
-              players_who_changed_str = chain_of_thought.open_question(
+              players_who_changed_str, _ = chain_of_thought.open_question(
                   question=(
                       f'Which individuals gained or lost {item_type}?\n'
                       + 'Respond with a comma-separated list, for example: \n'
@@ -246,7 +246,7 @@ class Inventory(
                   many_or_much = _many_or_much_fn(
                       self._is_count_noun[item_type]
                   )
-                  amount = chain_of_thought.open_question(
+                  amount, _ = chain_of_thought.open_question(
                       question=(
                           f'How {many_or_much} {item_type} did {player} gain'
                           f' as a result of the event? If they lost {item_type}'
@@ -343,7 +343,7 @@ class Inventory(
                         f' {item_type} did not actually happen or did not cause'
                         ' the amount to change after all.'
                     )
-                    reason_for_no_change_clause = chain_of_thought.open_question(
+                    reason_for_no_change_clause, _ = chain_of_thought.open_question(
                         question=(
                             'What is the reason that the amount of'
                             f' {item_type} did not change despite the event'

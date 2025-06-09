@@ -45,7 +45,7 @@ class SimpleLLMAgent(agent.GenerativeAgent):
       memories_length: int = 10,
   ):
     """Initializes the agent.
-    
+
     Args:
       agent_name: The name of the agent.
       agent_background: The background intormation of the agent. This is used
@@ -79,7 +79,7 @@ class SimpleLLMAgent(agent.GenerativeAgent):
           f"{action_spec.call_to_action}\n",
           action_spec.options)
       return response
-    sampled_text = self._model.sample_text(
+    sampled_text, _ = self._model.sample_text(
         f"{self._agent_background}\n"
         f"Your name is {self.name}\n"
         f"Your last observations are:\n{previous_observations}\n"

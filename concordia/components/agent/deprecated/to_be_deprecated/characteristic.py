@@ -113,7 +113,7 @@ class Characteristic(component.Component):
     if self._clock_now is not None:
       question = f'Current time: {self._clock_now()}.\n{question}'
 
-    self._cache = prompt.open_question(
+    self._cache, _ = prompt.open_question(
         '\n'.join([question, f'Statements:\n{mems}']),
         max_tokens=1000,
         answer_prefix=f'{self._agent_name} is ',

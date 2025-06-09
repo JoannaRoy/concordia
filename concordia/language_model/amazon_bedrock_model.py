@@ -164,7 +164,7 @@ class AmazonBedrockLanguageModel(language_model.LanguageModel):
               )
           },
       )
-    return response['output']['message']['content'][0]['text']
+    return response['output']['message']['content'][0]['text'], None
 
   @override
   def sample_choice(
@@ -191,7 +191,7 @@ class AmazonBedrockLanguageModel(language_model.LanguageModel):
           attempts, _MAX_MULTIPLE_CHOICE_ATTEMPTS
       )
 
-      sample = self.sample_text(
+      sample, _ = self.sample_text(
           prompt,
           temperature=temperature,
       )
