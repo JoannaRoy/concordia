@@ -147,7 +147,7 @@ class SwitchAct(
       # YOLO case
       chain_of_thought = interactive_document.InteractiveDocument(self._model)
       chain_of_thought.statement(context)
-      result = chain_of_thought.open_question(
+      result, _ = chain_of_thought.open_question(
           question=action_spec.call_to_action,
           max_tokens=1000)
       self._log(result, chain_of_thought, action_spec)
@@ -188,7 +188,7 @@ class SwitchAct(
       # YOLO case
       chain_of_thought = interactive_document.InteractiveDocument(self._model)
       chain_of_thought.statement(context)
-      _ = chain_of_thought.open_question(question=action_spec.call_to_action)
+      _, _ = chain_of_thought.open_question(question=action_spec.call_to_action)
       # Then ask the GM to reformat their answer in whatever string format can
       # be used by the engine and its parser.
       chain_of_thought.statement(
@@ -199,7 +199,7 @@ class SwitchAct(
           'could be indicated as '
           'prompt: Where will Edgar go?;;type: choice;;'
           'options: home, London, Narnia, the third moon of Jupiter')
-      next_action_spec_string = chain_of_thought.open_question(
+      next_action_spec_string, _ = chain_of_thought.open_question(
           question='In what action spec format should the next player respond?')
       if 'type:' not in next_action_spec_string:
         next_action_spec_string = (
@@ -221,7 +221,7 @@ class SwitchAct(
     else:
       chain_of_thought = interactive_document.InteractiveDocument(self._model)
       chain_of_thought.statement(context)
-      result = chain_of_thought.open_question(
+      result, _ = chain_of_thought.open_question(
           question=action_spec.call_to_action)
       self._log(result, chain_of_thought, action_spec)
 
@@ -261,17 +261,18 @@ class SwitchAct(
         name=self.get_entity().name,
     )
     if action_spec.output_type == entity_lib.OutputType.FREE:
-      output = self.get_entity().name + ' '
-      output += prompt.open_question(
+      output_prefix = self.get_entity().name + ' '
+      response_text, _ = prompt.open_question(
           call_to_action,
           max_tokens=2200,
-          answer_prefix=output,
+          answer_prefix=output_prefix,
           # This terminator protects against the model providing extra context
           # after the end of a directly spoken response, since it normally
           # puts a space after a quotation mark only in these cases.
           terminators=('" ', '\n'),
           question_label='Exercise',
       )
+      output = output_prefix + response_text
       self._log(output, prompt, action_spec)
       return output
     elif action_spec.output_type == entity_lib.OutputType.CHOICE:
@@ -283,7 +284,7 @@ class SwitchAct(
       return output
     elif action_spec.output_type == entity_lib.OutputType.FLOAT:
       prefix = self.get_entity().name + ' '
-      sampled_text = prompt.open_question(
+      sampled_text, _ = prompt.open_question(
           call_to_action,
           max_tokens=2200,
           answer_prefix=prefix,

@@ -237,8 +237,7 @@ class Sequential(engine_lib.Engine):
         assert hasattr(game_master, 'get_last_log')  # Assertion for pytype
         log_entry['next_game_master'] = game_master.get_last_log()
 
-      # Define a function to make an entity's observation and send it to them.
-      def _entity_observation(entity: entity_lib.Entity) -> None:
+      for entity in entities:
         observation = self.make_observation(game_master, entity)
         if log is not None and hasattr(game_master, 'get_last_log'):
           assert hasattr(game_master, 'get_last_log')  # Assertion for pytype
@@ -248,12 +247,6 @@ class Sequential(engine_lib.Engine):
           print(termcolor.colored(
               f'Entity {entity.name} observed: {observation}', _PRINT_COLOR))
         entity.observe(observation)
-
-      tasks = {
-          entity.name: functools.partial(_entity_observation, entity)
-          for entity in entities
-      }
-      concurrency.run_tasks(tasks)
 
       next_entity, entity_spec_to_use = self.next_acting(
           game_master, entities, log_entry=log_entry, log=log)

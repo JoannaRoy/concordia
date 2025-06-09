@@ -130,7 +130,7 @@ class MakeObservation(entity_component.ContextComponent,
 
         self._queue[active_entity_name] = []
       else:
-        result = prompt.open_question(
+        result, _ = prompt.open_question(
             question=(
                 f'What does {active_entity_name} observe now? Never '
                 'repeat information that was already provided to '
@@ -154,7 +154,7 @@ class MakeObservation(entity_component.ContextComponent,
             )
         )
         if not correct_format:
-          result = prompt.open_question(
+          result, _ = prompt.open_question(
               question=(
                   f'Reformat {active_entity_name}\'s draft observation '
                   'to fit the required format.'
