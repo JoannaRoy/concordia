@@ -26,11 +26,9 @@ from typing_extensions import override
 
 
 DEFAULT_SYSTEM_MESSAGE = (
-    "Continue the user's sentences. Never repeat their starts. For example,"
-    " when you see 'Bob is', you should continue the sentence after the word"
-    " 'is'. It is OK to be creative with how you finish the user's sentences."
-    ' The most important thing is to always continue in the same style as the'
-    ' user.'
+    "You are a helpful assistant. Complete the user's sentence concisely and"
+    ' appropriately. Avoid unnecessary elaboration or flowery language. Keep'
+    ' responses brief and to the point.'
 )
 
 
@@ -133,14 +131,14 @@ class HuggingFaceLanguageModel(language_model.LanguageModel):
 
     try:
       generation_args = {
-          'max_new_tokens': max_tokens,
-          'temperature': temperature,
+          'max_new_tokens': min(max_tokens, 50),
+          'temperature': min(temperature, 0.3),
           'return_full_text': False,
           'num_return_sequences': 1,
           'do_sample': True,
-          'repetition_penalty': 1.1,
-          'no_repeat_ngram_size': 3,
-          'early_stopping': True,
+          'repetition_penalty': 1.3,
+          'no_repeat_ngram_size': 4,
+          'length_penalty': 0.8,
           'pad_token_id': self.tokenizer.pad_token_id,
       }
       if seed is not None:
