@@ -86,15 +86,12 @@ class ConcatActComponent(
       contexts: entity_component.ComponentContextMapping,
   ) -> str:
     if self._component_order is None:
-      return '\n'.join(
-          context for context in contexts.values() if context
-      )
+      return '\n'.join(context for context in contexts.values() if context)
     else:
-      order = self._component_order + tuple(sorted(
-          set(contexts.keys()) - set(self._component_order)))
-      return '\n'.join(
-          contexts[name] for name in order if contexts[name]
+      order = self._component_order + tuple(
+          sorted(set(contexts.keys()) - set(self._component_order))
       )
+      return '\n'.join(contexts[name] for name in order if contexts[name])
 
   @override
   def get_action_attempt(
@@ -117,11 +114,13 @@ class ConcatActComponent(
     ):
       llm_answer_prefix = self.get_entity().name + ' '
 
-    final_output_string = ""
+    final_output_string = ''
 
     reasoning_output = None
-    if self._reasoning_component_key and \
-       action_spec.output_type in entity_lib.FREE_ACTION_TYPES:
+    if (
+        self._reasoning_component_key
+        and action_spec.output_type in entity_lib.FREE_ACTION_TYPES
+    ):
       reasoning_output = contexts.get(self._reasoning_component_key)
 
     if reasoning_output:
@@ -137,9 +136,9 @@ class ConcatActComponent(
           question_label='Exercise',
       )
       if llm_answer_prefix:
-          final_output_string = llm_answer_prefix + llm_response
+        final_output_string = llm_answer_prefix + llm_response
       else:
-          final_output_string = llm_response
+        final_output_string = llm_response
 
     elif action_spec.output_type in entity_lib.CHOICE_ACTION_TYPES:
       idx = prompt.multiple_choice_question(
@@ -159,9 +158,9 @@ class ConcatActComponent(
         parsed_float_str = '0.0'
 
       if llm_answer_prefix:
-          final_output_string = llm_answer_prefix + parsed_float_str
+        final_output_string = llm_answer_prefix + parsed_float_str
       else:
-          final_output_string = parsed_float_str
+        final_output_string = parsed_float_str
 
     else:
       raise NotImplementedError(
@@ -172,10 +171,12 @@ class ConcatActComponent(
     self._log(final_output_string, prompt)
     return final_output_string
 
-  def _log(self,
-           result: str,
-           prompt: interactive_document.InteractiveDocument,
-           used_reasoning_component: bool = False):
+  def _log(
+      self,
+      result: str,
+      prompt: interactive_document.InteractiveDocument,
+      used_reasoning_component: bool = False,
+  ):
     log_data = {
         'Summary': f'Action: {result}',
         'Value': result,

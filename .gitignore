@@ -30,3 +30,4 @@ __pycache__/
 # Ignore PDFs
 caif_project_evaluating_agent_safte/resources/papers/*
 caif_project_evaluating_agent_safte/env_setup.sh
+concordia/safte_concordia/*

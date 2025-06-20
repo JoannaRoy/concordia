@@ -26,12 +26,12 @@ from typing_extensions import override
 
 
 DEFAULT_SYSTEM_MESSAGE = (
-    'Continue the user\'s sentences. Never repeat their starts. For example, '
-    'when you see \'Bob is\', you should continue the sentence after '
-    'the word \'is\'. It is OK to be creative with how you finish the user\'s sentences. The '
-    'most important thing is to always continue in the same style as the user.'
+    "Continue the user's sentences. Never repeat their starts. For example,"
+    " when you see 'Bob is', you should continue the sentence after the word"
+    " 'is'. It is OK to be creative with how you finish the user's sentences."
+    ' The most important thing is to always continue in the same style as the'
+    ' user.'
 )
-
 
 
 class HuggingFaceLanguageModel(language_model.LanguageModel):
@@ -44,7 +44,7 @@ class HuggingFaceLanguageModel(language_model.LanguageModel):
       *,
       measurements: measurements_lib.Measurements | None = None,
       channel: str = language_model.DEFAULT_STATS_CHANNEL,
-      dtype: str = "bfloat16",
+      dtype: str = 'bfloat16',
   ):
     """Initializes the instance.
 
@@ -67,19 +67,24 @@ class HuggingFaceLanguageModel(language_model.LanguageModel):
     bnb_config = BitsAndBytesConfig(
         load_in_4bit=True,
         bnb_4bit_use_double_quant=True,
-        bnb_4bit_quant_type="nf4",
+        bnb_4bit_quant_type='nf4',
         bnb_4bit_compute_dtype=dtype,
     )
-    tokenizer = AutoTokenizer.from_pretrained(model_name, use_fast=True)
-    model = AutoModelForCausalLM.from_pretrained(
+    self.tokenizer = AutoTokenizer.from_pretrained(model_name, use_fast=True)
+    self.model = AutoModelForCausalLM.from_pretrained(
         model_name,
         quantization_config=bnb_config,
-        device_map="auto",
+        device_map='auto',
     )
 
     # Initialize the HuggingFace pipeline
-    self._pipeline = pipeline("text-generation", model=model, tokenizer=tokenizer)
-    print(f"DEBUG: HuggingFace Pipeline initialized on device: {self._pipeline.device}")
+    self._pipeline = pipeline(
+        'text-generation', model=self.model, tokenizer=self.tokenizer
+    )
+    print(
+        'DEBUG: HuggingFace Pipeline initialized on device:'
+        f' {self._pipeline.device}'
+    )
 
   @override
   def sample_text(
@@ -93,43 +98,43 @@ class HuggingFaceLanguageModel(language_model.LanguageModel):
   ) -> str:
     """Samples text from the HuggingFace model."""
     if temperature <= 0:
-        temperature = 0.1
+      temperature = 0.1
 
     messages = [
         {'role': 'system', 'content': DEFAULT_SYSTEM_MESSAGE},
         # few shot examples
-        {'role': 'user', 'content': 'Question: Is Jake a turtle?\\nAnswer: Jake is '},
+        {
+            'role': 'user',
+            'content': 'Question: Is Jake a turtle?\\nAnswer: Jake is ',
+        },
         {'role': 'assistant', 'content': 'not a turtle.'},
-        {'role': 'user', 'content': prompt}
+        {'role': 'user', 'content': prompt},
     ]
 
     try:
-        generation_args = {
-            "max_new_tokens": max_tokens,
-            "temperature": temperature,
-            "return_full_text": False,
-            "num_return_sequences": 1,
-        }
-        if seed is not None:
-            generation_args["seed"] = seed
+      generation_args = {
+          'max_new_tokens': max_tokens,
+          'temperature': temperature,
+          'return_full_text': False,
+          'num_return_sequences': 1,
+      }
+      if seed is not None:
+        generation_args['seed'] = seed
 
-        # The pipeline should apply the model's chat template to the messages.
-        outputs = self._pipeline(
-            messages,
-            **generation_args
-        )
-        generated_text = outputs[0]['generated_text']
+      # The pipeline should apply the model's chat template to the messages.
+      outputs = self._pipeline(messages, **generation_args)
+      generated_text = outputs[0]['generated_text']
 
-        # Manual truncation based on terminators
-        if terminators:
-            for term in terminators:
-                if term in generated_text:
-                    generated_text = generated_text.split(term)[0]
+      # Manual truncation based on terminators
+      if terminators:
+        for term in terminators:
+          if term in generated_text:
+            generated_text = generated_text.split(term)[0]
 
     except Exception as e:
       # Log or handle the exception appropriately
-      print(f"Error during HuggingFace model generation: {e}")
-      return "" # Return empty string or raise an error
+      print(f'Error during HuggingFace model generation: {e}')
+      return ''  # Return empty string or raise an error
 
     if self._measurements is not None:
       self._measurements.publish_datum(
@@ -144,7 +149,7 @@ class HuggingFaceLanguageModel(language_model.LanguageModel):
       prompt: str,
       responses: Sequence[str],
       *_,
-      seed: int | None = None, # pylint: disable=unused-argument
+      seed: int | None = None,  # pylint: disable=unused-argument
   ) -> tuple[int, str, Mapping[str, Any]]:
     """Samples a response from those available using the HuggingFace model.
 
@@ -166,36 +171,46 @@ class HuggingFaceLanguageModel(language_model.LanguageModel):
       response, and some info about the sampling process.
     """
     # Attempt to format prompt to guide model towards a choice.
-    choice_prompt = f"{prompt}\\nWhich of the following is correct?\\n"
+    choice_prompt = f'{prompt}\\nWhich of the following is correct?\\n'
     for i, r in enumerate(responses):
-        choice_prompt += f"{i+1}. {r}\\n"
-    choice_prompt += "Answer with the number and the text of the correct option:"
+      choice_prompt += f'{i+1}. {r}\\n'
+    choice_prompt += (
+        'Answer with the number and the text of the correct option:'
+    )
 
     MAX_ATTEMPTS = 3
     attempts = 0
     temperature = language_model.DEFAULT_TEMPERATURE
 
     while attempts < MAX_ATTEMPTS:
-        generated_text = self.sample_text(
-            choice_prompt,
-            temperature=temperature,
-            max_tokens=max(len(r) for r in responses) + 20, # Give some room for choice text
-            seed=seed + attempts if seed is not None else None # Vary seed per attempt
-        )
+      generated_text = self.sample_text(
+          choice_prompt,
+          temperature=temperature,
+          max_tokens=max(len(r) for r in responses)
+          + 20,  # Give some room for choice text
+          seed=seed + attempts
+          if seed is not None
+          else None,  # Vary seed per attempt
+      )
 
-        for idx, response_text in enumerate(responses):
-            if response_text in generated_text:
-                if self._measurements is not None:
-                    self._measurements.publish_datum(
-                        self._channel, {'choices_calls': attempts + 1}
-                    )
-                return idx, response_text, {"attempt": attempts + 1, "raw_sample": generated_text}
+      for idx, response_text in enumerate(responses):
+        if response_text in generated_text:
+          if self._measurements is not None:
+            self._measurements.publish_datum(
+                self._channel, {'choices_calls': attempts + 1}
+            )
+          return (
+              idx,
+              response_text,
+              {'attempt': attempts + 1, 'raw_sample': generated_text},
+          )
 
-        attempts += 1
-        temperature += 0.2 # Increase temperature for next attempt
+      attempts += 1
+      temperature += 0.2  # Increase temperature for next attempt
 
     # If no choice is matched, raise an error or return a default.
     raise language_model.InvalidResponseError(
-        f"HuggingFace model failed to select a valid choice after {MAX_ATTEMPTS} attempts. "
-        f"Last sample: '{generated_text}' for prompt: '{choice_prompt}'"
+        'HuggingFace model failed to select a valid choice after'
+        f" {MAX_ATTEMPTS} attempts. Last sample: '{generated_text}' for prompt:"
+        f" '{choice_prompt}'"
     )
