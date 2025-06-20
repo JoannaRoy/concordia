@@ -3,8 +3,6 @@ import json
 from concordia.language_model.huggingface_model import HuggingFaceLanguageModel
 
 SAFTE_CONFIG = {
-    'pad_token_id': None,
-    'eos_token_id': None,
     'do_sample': True,
     'temperature': 0.7,
     'top_p': 1.0,
@@ -108,15 +106,17 @@ class SAFTEJustifyStage:
       json.dump(data, f)
 
   def run(self):
+    config = SAFTE_CONFIG.copy()
+    config['pad_token_id'] = self.model.tokenizer.pad_token_id
+    config['eos_token_id'] = self.model.tokenizer.eos_token_id
 
     inputs = self.model.tokenizer(
         self.prompt, return_tensors='pt', padding=True
     ).to(self.model.device)
 
-    # pass formatted prompt to model
     generations = self.model.generate(
         **inputs,
-        **SAFTE_CONFIG,
+        **config,
     )
 
     # extract intermediate outputs

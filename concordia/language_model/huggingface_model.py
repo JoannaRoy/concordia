@@ -42,6 +42,7 @@ class HuggingFaceLanguageModel(language_model.LanguageModel):
       model_name: str,
       api_key: str,
       *,
+      device: int = 0,
       measurements: measurements_lib.Measurements | None = None,
       channel: str = language_model.DEFAULT_STATS_CHANNEL,
       dtype: str = 'bfloat16',
@@ -61,6 +62,7 @@ class HuggingFaceLanguageModel(language_model.LanguageModel):
     self._measurements = measurements
     self._channel = channel
     self._api_key = api_key
+    self._device = device
 
     huggingface_hub.login(api_key)
 
@@ -70,21 +72,39 @@ class HuggingFaceLanguageModel(language_model.LanguageModel):
         bnb_4bit_quant_type='nf4',
         bnb_4bit_compute_dtype=dtype,
     )
+
     self.tokenizer = AutoTokenizer.from_pretrained(model_name, use_fast=True)
+
+    if self.tokenizer.pad_token is None:
+      self.tokenizer.pad_token = self.tokenizer.eos_token
+    if self.tokenizer.pad_token_id is None:
+      self.tokenizer.pad_token_id = self.tokenizer.eos_token_id
+
     self.model = AutoModelForCausalLM.from_pretrained(
         model_name,
         quantization_config=bnb_config,
         device_map='auto',
     )
 
-    # Initialize the HuggingFace pipeline
     self._pipeline = pipeline(
-        'text-generation', model=self.model, tokenizer=self.tokenizer
+        'text-generation',
+        model=self.model,
+        tokenizer=self.tokenizer,
+        device=self._device if self._device >= 0 else -1,
+        batch_size=1,
+        pad_token_id=self.tokenizer.pad_token_id,
     )
     print(
         'DEBUG: HuggingFace Pipeline initialized on device:'
         f' {self._pipeline.device}'
     )
+
+  @property
+  def device(self):
+    return self.model.device
+
+  def generate(self, **kwargs):
+    return self.model.generate(**kwargs)
 
   @override
   def sample_text(

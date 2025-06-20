@@ -11,19 +11,23 @@ from concordia.typing import prefab as prefab_lib
 from concordia.utils import helper_functions
 import torch
 
-def setup_language_model(api_key, model_name, disable_model=False,device=0):
-    torch.cuda.empty_cache()
 
-    if not disable_model:
-        return huggingface_model.HuggingFaceLanguageModel(api_key=api_key, model_name=model_name,device=device)
-    return no_language_model.NoLanguageModel()
+def setup_language_model(api_key, model_name, disable_model=False, device=0):
+  torch.cuda.empty_cache()
+  if not disable_model:
+    return huggingface_model.HuggingFaceLanguageModel(
+        api_key=api_key, model_name=model_name, device=device
+    )
+  return no_language_model.NoLanguageModel()
+
 
 def setup_embedder(disable_model=False):
-    if disable_model:
-        return np.ones(3)
-
-    st_model = sentence_transformers.SentenceTransformer('sentence-transformers/all-mpnet-base-v2')
-    return lambda x: st_model.encode(x, show_progress_bar=False)
+  if disable_model:
+    return np.ones(3)
+  st_model = sentence_transformers.SentenceTransformer(
+      'sentence-transformers/all-mpnet-base-v2'
+  )
+  return lambda x: st_model.encode(x, show_progress_bar=False)
 
 def get_prefabs():
     return {
@@ -32,44 +36,44 @@ def get_prefabs():
     }
 
 def get_instances():
-    return [
-        prefab_lib.InstanceConfig(
-            prefab='basic__Entity',
-            role=prefab_lib.Role.ENTITY,
-            params={
-                'name': 'Oliver Cromwell',
-                'goal': 'become lord protector',
-            },
-        ),
-        prefab_lib.InstanceConfig(
-            prefab='basic__Entity',
-            role=prefab_lib.Role.ENTITY,
-            params={
-                'name': 'King Charles I',
-                'goal': 'avoid execution for treason',
-              },
-        ),
-        prefab_lib.InstanceConfig(
-            prefab='generic__GameMaster',
-            role=prefab_lib.Role.GAME_MASTER,
-            params={
-                'name': 'default rules',
-                'extra_event_resolution_steps': '',
-            },
-        ),
-        prefab_lib.InstanceConfig(
-            prefab='formative_memories_initializer__GameMaster',
-            role=prefab_lib.Role.INITIALIZER,
-            params={
-                'name': 'initial setup rules',
-                'next_game_master_name': 'default rules',
-                'shared_memories': [
-                    'The king was captured by Parliamentary forces in 1646.',
-                    'Charles I was tried for treason and found guilty.',
-                ],
-            },
-        ),
-    ]
+  return [
+      prefab_lib.InstanceConfig(
+          prefab='basic__Entity',
+          role=prefab_lib.Role.ENTITY,
+          params={
+              'name': 'Oliver Cromwell',
+              'goal': 'become lord protector',
+          },
+      ),
+      prefab_lib.InstanceConfig(
+          prefab='basic__Entity',
+          role=prefab_lib.Role.ENTITY,
+          params={
+              'name': 'King Charles I',
+              'goal': 'avoid execution for treason',
+          },
+      ),
+      prefab_lib.InstanceConfig(
+          prefab='generic__GameMaster',
+          role=prefab_lib.Role.GAME_MASTER,
+          params={
+              'name': 'default rules',
+              'extra_event_resolution_steps': '',
+          },
+      ),
+      prefab_lib.InstanceConfig(
+          prefab='formative_memories_initializer__GameMaster',
+          role=prefab_lib.Role.INITIALIZER,
+          params={
+              'name': 'initial setup rules',
+              'next_game_master_name': 'default rules',
+              'shared_memories': [
+                  'The king was captured by Parliamentary forces in 1646.',
+                  'Charles I was tried for treason and found guilty.',
+              ],
+          },
+      ),
+  ]
 
 def create_simulation_config():
     return prefab_lib.Config(
@@ -88,29 +92,35 @@ def run_simulation(model, embedder, config):
     return runnable_simulation.play()
 
 def main():
-    try:
-        GPT_API_KEY = os.getenv('HF_API_KEY', '')
-        GPT_MODEL_NAME = os.getenv('GPT_MODEL_NAME', 'meta-llama/Meta-Llama-3-8B-Instruct')
-        DISABLE_LANGUAGE_MODEL = os.getenv('DISABLE_LANGUAGE_MODEL', 'False').lower() == 'true'
+  try:
+    GPT_API_KEY = os.getenv('HF_API_KEY', '')
+    GPT_MODEL_NAME = os.getenv(
+        'GPT_MODEL_NAME', 'meta-llama/Llama-3.2-1B-Instruct'
+    )
+    DISABLE_LANGUAGE_MODEL = (
+        os.getenv('DISABLE_LANGUAGE_MODEL', 'False').lower() == 'true'
+    )
 
-        print("Initializing language model...", file=sys.stderr)
-        model = setup_language_model(GPT_API_KEY, GPT_MODEL_NAME, DISABLE_LANGUAGE_MODEL,device=0)
+    print('Initializing language model...', file=sys.stderr)
+    model = setup_language_model(
+        GPT_API_KEY, GPT_MODEL_NAME, DISABLE_LANGUAGE_MODEL, device=0
+    )
 
-        print("Setting up embedder...", file=sys.stderr)
-        embedder = setup_embedder(DISABLE_LANGUAGE_MODEL)
+    print('Setting up embedder...', file=sys.stderr)
+    embedder = setup_embedder(DISABLE_LANGUAGE_MODEL)
 
-        print("Creating simulation config...", file=sys.stderr)
-        config = create_simulation_config()
+    print('Creating simulation config...', file=sys.stderr)
+    config = create_simulation_config()
 
-        print("Running simulation...", file=sys.stderr)
-        results_log = run_simulation(model, embedder, config)
+    print('Running simulation...', file=sys.stderr)
+    results_log = run_simulation(model, embedder, config)
 
-        print(results_log)
-        return 0
+    print(results_log)
+    return 0
 
-    except Exception as e:
-        print(f"Error: {str(e)}", file=sys.stderr)
-        return 1
+  except Exception as e:
+    print(f'Error: {str(e)}', file=sys.stderr)
+    return 1
 
 if __name__ == '__main__':
     sys.exit(main())
