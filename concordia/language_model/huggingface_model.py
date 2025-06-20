@@ -92,6 +92,8 @@ class HuggingFaceLanguageModel(language_model.LanguageModel):
         tokenizer=self.tokenizer,
         batch_size=1,
         pad_token_id=self.tokenizer.pad_token_id,
+        framework='pt',
+        trust_remote_code=True,
     )
     print(
         'DEBUG: HuggingFace Pipeline initialized on device:'
@@ -121,7 +123,6 @@ class HuggingFaceLanguageModel(language_model.LanguageModel):
 
     messages = [
         {'role': 'system', 'content': DEFAULT_SYSTEM_MESSAGE},
-        # few shot examples
         {
             'role': 'user',
             'content': 'Question: Is Jake a turtle?\\nAnswer: Jake is ',
@@ -136,24 +137,26 @@ class HuggingFaceLanguageModel(language_model.LanguageModel):
           'temperature': temperature,
           'return_full_text': False,
           'num_return_sequences': 1,
+          'do_sample': True,
+          'repetition_penalty': 1.1,
+          'no_repeat_ngram_size': 3,
+          'early_stopping': True,
+          'pad_token_id': self.tokenizer.pad_token_id,
       }
       if seed is not None:
         generation_args['seed'] = seed
 
-      # The pipeline should apply the model's chat template to the messages.
       outputs = self._pipeline(messages, **generation_args)
       generated_text = outputs[0]['generated_text']
 
-      # Manual truncation based on terminators
       if terminators:
         for term in terminators:
           if term in generated_text:
             generated_text = generated_text.split(term)[0]
 
     except Exception as e:
-      # Log or handle the exception appropriately
       print(f'Error during HuggingFace model generation: {e}')
-      return ''  # Return empty string or raise an error
+      return ''
 
     if self._measurements is not None:
       self._measurements.publish_datum(
