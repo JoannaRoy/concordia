@@ -87,6 +87,8 @@ setuptools.setup(
         'transformers',
         'typing-extensions',
         'jinja2',
+        'bitsandbytes',
+        'accelerate',
     ),
     extras_require={
         # Used in development.
