@@ -90,7 +90,6 @@ class HuggingFaceLanguageModel(language_model.LanguageModel):
         'text-generation',
         model=self.model,
         tokenizer=self.tokenizer,
-        device=self._device if self._device >= 0 else -1,
         batch_size=1,
         pad_token_id=self.tokenizer.pad_token_id,
     )
