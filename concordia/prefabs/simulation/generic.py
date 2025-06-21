@@ -15,15 +15,18 @@
 """An adaptable simulation prefab that can be configured to run any simulation.
 """
 
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 import copy
+from typing import Any
 
 from concordia.associative_memory import basic_associative_memory as associative_memory
 from concordia.environment.engines import sequential
 from concordia.language_model import language_model
+from concordia.typing import entity as entity_lib
 from concordia.typing import entity_component
 from concordia.typing import prefab as prefab_lib
 from concordia.typing import simulation as simulation_lib
+from concordia.utils import helper_functions as helper_functions_lib
 from concordia.utils import html as html_lib
 import numpy as np
 
@@ -116,7 +119,7 @@ class Simulation(simulation_lib.Simulation):
           model=model, memory_bank=self.game_master_memory_bank)
       self.game_masters.append(game_master)
 
-  def get_game_masters(self) -> list[entity_component.EntityWithComponents]:
+  def get_game_masters(self) -> list[entity_lib.Entity]:
     """Get the game masters.
 
     The function returns a copy of the game masters list to avoid modifying the
@@ -128,7 +131,7 @@ class Simulation(simulation_lib.Simulation):
     """
     return copy.copy(self.game_masters)
 
-  def get_entities(self) -> list[entity_component.EntityWithComponents]:
+  def get_entities(self) -> list[entity_lib.Entity]:
     """Get the entities.
 
     The function returns a copy of the entities list to avoid modifying the
@@ -140,11 +143,11 @@ class Simulation(simulation_lib.Simulation):
     """
     return copy.copy(self.entities)
 
-  def add_game_master(self, game_master: entity_component.EntityWithComponents):
+  def add_game_master(self, game_master: entity_lib.Entity):
     """Add a game master to the simulation."""
     self.game_masters.append(game_master)
 
-  def add_entity(self, entity: entity_component.EntityWithComponents):
+  def add_entity(self, entity: entity_lib.Entity):
     """Add an entity to the simulation."""
     self.entities.append(entity)
 
@@ -152,12 +155,16 @@ class Simulation(simulation_lib.Simulation):
       self,
       premise: str | None = None,
       max_steps: int | None = None,
+      raw_log: list[Mapping[str, Any]] | None = None,
   ) -> str:
     """Run the simulation.
 
     Args:
       premise: A string to use as the initial premise of the simulation.
       max_steps: The maximum number of steps to run the simulation for.
+      raw_log: A list to store the raw log of the simulation. This is used to
+        generate the HTML log. Data in the supplied raw_log will be appended
+        with the log from the simulation. If None, a new list is created.
 
     Returns:
       html_results_log: browseable log of the simulation in HTML format
@@ -167,7 +174,7 @@ class Simulation(simulation_lib.Simulation):
     if max_steps is None:
       max_steps = self._config.default_max_steps
 
-    raw_log = []
+    raw_log = raw_log or []
     self._environment.run_loop(
         game_masters=self.game_masters,
         entities=self.entities,
@@ -180,8 +187,15 @@ class Simulation(simulation_lib.Simulation):
     player_logs = []
     player_log_names = []
 
+    scores = helper_functions_lib.find_data_in_nested_structure(
+        raw_log, "Player Scores"
+    )
+
     for player in self.entities:
-      if player.get_component("__memory__") is None:
+      if (
+          not isinstance(player, entity_component.EntityWithComponents)
+          or player.get_component("__memory__") is None
+      ):
         continue
 
       entity_memory_component = player.get_component("__memory__")
@@ -200,12 +214,16 @@ class Simulation(simulation_lib.Simulation):
     ).convert()
     player_logs.append(game_master_html)
     player_log_names.append("Game Master Memories")
-
-    results_log = html_lib.PythonObjectToHTMLConverter(raw_log).convert()
+    summary = ""
+    if scores:
+      summary = f"Player Scores: {scores[-1]}"
+    results_log = html_lib.PythonObjectToHTMLConverter(
+        copy.deepcopy(raw_log)
+    ).convert()
     tabbed_html = html_lib.combine_html_pages(
         [results_log, *player_logs],
         ["Game Master log", *player_log_names],
-        summary="",
+        summary=summary,
         title="Simulation Log",
     )
     html_results_log = html_lib.finalise_html(tabbed_html)

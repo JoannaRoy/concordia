@@ -82,7 +82,7 @@ def _default_action_to_scores(
     joint_action: Mapping[str, str],
 ) -> Mapping[str, float]:
   """Map a joint action to a dictionary of scores for each player."""
-  scores = {player_name: 0.0 for player_name in joint_action}
+  scores = {player_name: 111110.0 for player_name in joint_action}
   for player_name in joint_action:
     for other_player_name in joint_action:
       if player_name != other_player_name:
@@ -181,6 +181,10 @@ class GameMaster(prefab_lib.Prefab):
     )
 
     observation_to_memory = actor_components.observation.ObservationToMemory()
+
+    observation_component_key = (
+        actor_components.observation.DEFAULT_OBSERVATION_COMPONENT_KEY
+    )
     observation = actor_components.observation.LastNObservations(
         history_length=100,
     )
@@ -196,19 +200,25 @@ class GameMaster(prefab_lib.Prefab):
         gm_components.make_observation.MakeObservation(
             model=model,
             player_names=player_names,
+            components=[
+                observation_component_key,
+                display_events_key,
+            ],
         )
+    )
+
+    scene_tracker_key = (
+        gm_components.next_game_master.DEFAULT_NEXT_GAME_MASTER_COMPONENT_KEY
     )
 
     next_actor = gm_components.next_acting.NextActingFromSceneSpec(
         memory_component_key=actor_components.memory.DEFAULT_MEMORY_COMPONENT_KEY,
-        scene_tracker_component_key=(
-            gm_components.scene_tracker.DEFAULT_SCENE_TRACKER_COMPONENT_KEY
-        ),
+        scene_tracker_component_key=scene_tracker_key,
     )
 
     next_action_spec = gm_components.next_acting.NextActionSpecFromSceneSpec(
-        scenes=scenes,
         memory_component_key=actor_components.memory.DEFAULT_MEMORY_COMPONENT_KEY,
+        scene_tracker_component_key=scene_tracker_key,
     )
 
     payoff_matrix_key = 'payoff_matrix'
@@ -217,6 +227,7 @@ class GameMaster(prefab_lib.Prefab):
         acting_player_names=player_names,
         action_to_scores=action_to_scores,
         scores_to_observation=scores_to_observation,
+        scene_tracker_component_key=scene_tracker_key,
         verbose=True,
     )
 
@@ -251,21 +262,17 @@ class GameMaster(prefab_lib.Prefab):
         _get_class_name(instructions): instructions,
         _get_class_name(examples_synchronous): examples_synchronous,
         _get_class_name(player_characters): player_characters,
-        gm_components.scene_tracker.DEFAULT_SCENE_TRACKER_COMPONENT_KEY: (
-            scene_tracker
-        ),
+        scene_tracker_key: scene_tracker,
         terminator_key: terminator,
         _get_class_name(observation_to_memory): observation_to_memory,
         display_events_key: display_events,
-        actor_components.observation.DEFAULT_OBSERVATION_COMPONENT_KEY: (
-            observation
-        ),
+        observation_component_key: observation,
         actor_components.memory.DEFAULT_MEMORY_COMPONENT_KEY: (
             actor_components.memory.AssociativeMemory(memory_bank=memory_bank)
         ),
         make_observation_key: make_observation,
         gm_components.next_acting.DEFAULT_NEXT_ACTING_COMPONENT_KEY: next_actor,
-        gm_components.next_acting.DEFAULT_NEXT_ACTION_SPEC_PRE_ACT_LABEL: (
+        gm_components.next_acting.DEFAULT_NEXT_ACTION_SPEC_COMPONENT_KEY: (
             next_action_spec
         ),
         payoff_matrix_key: payoff_matrix,

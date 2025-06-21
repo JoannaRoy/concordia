@@ -14,7 +14,7 @@
 
 """Component that helps a game master decide whose turn is next."""
 
-from collections.abc import Sequence
+from collections.abc import Sequence, Mapping
 import random
 
 from concordia.components.agent import action_spec_ignored
@@ -379,10 +379,11 @@ class NextActionSpec(
       ).get_currently_active_player()
       prompt.statement(
           'Example formatted action specs:\n'
-          f'1). "prompt: what does {active_player} say?;;type: free"\n'
-          f'2). "prompt: Where will {active_player} go?;;type: choice;;'
-          'options: home, London, Narnia, the third moon of Jupiter"\n'
+          f'1). "prompt: what does {active_player} do?;;type: free"\n'
+          f'2). "prompt: what does {active_player} say?;;type: free"\n'
           f'3). "prompt: Where will {active_player} go?;;type: choice;;'
+          'options: home, London, Narnia, the third moon of Jupiter"\n'
+          f'4). "prompt: Where will {active_player} go?;;type: choice;;'
           'options: stay here, go elsewhere"\n'
           'Note that prompts can be of any length, they are typically '
           'questions, and multiple choice answer responses must be '
@@ -403,21 +404,24 @@ class NextActionSpecFromSceneSpec(
 
   def __init__(
       self,
-      scenes: Sequence[scene_lib.SceneSpec],
       memory_component_key: str = (
           memory_component.DEFAULT_MEMORY_COMPONENT_KEY
       ),
       scene_tracker_component_key: str = (
           scene_tracker_component.DEFAULT_SCENE_TRACKER_COMPONENT_KEY
       ),
+      next_acting_component_key: str = (
+          DEFAULT_NEXT_ACTING_COMPONENT_KEY
+      ),
       pre_act_label: str = DEFAULT_NEXT_ACTION_SPEC_PRE_ACT_LABEL,
   ):
     """Initializes the component.
 
     Args:
-      scenes: All scenes to be used in the episode.
       memory_component_key: The name of the memory component.
       scene_tracker_component_key: The name of the scene tracker component.
+      next_acting_component_key: The name of the NextActingFromSceneSpec
+        component to use to get the name of the player whose turn is next.
       pre_act_label: Prefix to add to the output of the component when called in
         `pre_act`.
 
@@ -429,11 +433,7 @@ class NextActionSpecFromSceneSpec(
     self._memory_component_key = memory_component_key
     self._scene_tracker_component_key = scene_tracker_component_key
     self._pre_act_label = pre_act_label
-
-    # Extract all scene type specs from the provided scenes.
-    self._scene_type_specs = {}
-    for scene in scenes:
-      self._scene_type_specs[scene.scene_type.name] = scene.scene_type
+    self._next_acting_component_key = next_acting_component_key
 
   def _get_named_component_pre_act_value(self, component_name: str) -> str:
     """Returns the pre-act value of a named component of the parent entity."""
@@ -452,6 +452,12 @@ class NextActionSpecFromSceneSpec(
 
     return scene_tracker.get_current_scene_type()
 
+  def get_current_active_player(self) -> str | None:
+    next_acting = self.get_entity().get_component(
+        self._next_acting_component_key, type_=NextActingFromSceneSpec
+    )
+    return next_acting.get_currently_active_player()
+
   def pre_act(
       self,
       action_spec: entity_lib.ActionSpec,
@@ -460,7 +466,11 @@ class NextActionSpecFromSceneSpec(
     if action_spec.output_type == entity_lib.OutputType.NEXT_ACTION_SPEC:
       scene_type_spec = self._get_current_scene_type()
       action_spec = scene_type_spec.action_spec
+      if isinstance(action_spec, Mapping):
+        action_spec = action_spec.get(self.get_current_active_player())
       action_spec_string = engine_lib.action_spec_to_string(action_spec)
+      self._logging_channel({'Action spec': action_spec_string,
+                             'Scene type spec': scene_type_spec})
     return action_spec_string
 
 

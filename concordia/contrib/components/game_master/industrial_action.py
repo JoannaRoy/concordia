@@ -139,7 +139,9 @@ class LaborStrike(entity_component.ContextComponent):
     )
     return scene_runner.get_current_scene_type(memory=memory)
 
-  def _joint_action_is_complete(self, joint_action: Mapping[str, str]) -> bool:
+  def _joint_action_is_complete(
+      self, joint_action: Mapping[str, str | None]
+  ) -> bool:
     for acting_player_name in self._acting_player_names:
       if joint_action[acting_player_name] is None:
         return False
@@ -147,7 +149,7 @@ class LaborStrike(entity_component.ContextComponent):
 
   def _binarize_joint_action(
       self,
-      joint_action: Mapping[str, str]) -> Mapping[str, bool]:
+      joint_action: Mapping[str, str | None]) -> Mapping[str, bool]:
     binary_joint_action = {name: act == self._cooperative_option
                            for name, act in joint_action.items()}
     return binary_joint_action
@@ -214,19 +216,6 @@ class LaborStrike(entity_component.ContextComponent):
 
         if self._verbose:
           print(termcolor.colored(self._state, 'yellow'))
-
-    # num_players_already_acted = np.sum(
-    #     [value is not None for value in self._partial_joint_action.values()])
-    # total_num_players_to_act = len(self._acting_player_names)
-    # update_log = {
-    #     'date': self._clock_now(),
-    #     'Summary': self.name(),
-    #     'Stage index': self._stage_idx,
-    #     'How many players acted so far this stage': (
-    #         f'{num_players_already_acted}/{total_num_players_to_act}'),
-    #     'Joint action': joint_action_for_log,
-    # }
-    # self._history.append(update_log)
 
     if finished:
       # Advance to the next stage.
