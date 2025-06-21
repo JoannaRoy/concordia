@@ -23,7 +23,7 @@ from typing import Any, Callable, TypeVar
 from absl import logging
 
 _T = TypeVar('_T')
-
+MAX_WORKERS = 1
 
 @contextlib.contextmanager
 def _executor(**kwargs) -> Iterator[futures.ThreadPoolExecutor]:
@@ -67,7 +67,7 @@ def _as_completed(
     tasks: Mapping[str, Callable[[], _T]],
     *,
     timeout: float | None = None,
-    max_workers: int | None = None,
+    max_workers: int | None = MAX_WORKERS,
 ) -> Iterator[tuple[str, futures.Future[_T]]]:
   """Maps a function to a sequence of values in parallel.
 
@@ -102,7 +102,7 @@ def run_tasks(
     tasks: Mapping[str, Callable[[], _T]],
     *,
     timeout: float | None = None,
-    max_workers: int | None = None,
+    max_workers: int | None = MAX_WORKERS,
 ) -> Mapping[str, _T]:
   """Runs the callables in parallel, blocks until first failure.
 
@@ -134,7 +134,7 @@ def run_tasks_in_background(
     tasks: Mapping[str, Callable[[], _T]],
     *,
     timeout: float | None = None,
-    max_workers: int | None = None,
+    max_workers: int | None = MAX_WORKERS,
 ) -> tuple[Mapping[str, _T], Mapping[str, BaseException]]:
   """Runs the callables in parallel, blocks until all complete.
 
@@ -172,7 +172,7 @@ def map_parallel(
     fn: Callable[..., _T],
     *args: Collection[Any],
     timeout: float | None = None,
-    max_workers: int | None = None,
+    max_workers: int | None = MAX_WORKERS,
 ) -> Sequence[_T]:
   """Runs `map(*args)` in parallel.
 
