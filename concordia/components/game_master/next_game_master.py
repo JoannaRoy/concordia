@@ -138,7 +138,7 @@ class FormativeMemoriesInitializer(
       model: language_model.LanguageModel,
       next_game_master_name: str,
       player_names: Sequence[str],
-      shared_memories: Sequence[str] = (),
+      shared_memories: str = '',
       player_specific_memories: Mapping[
           str, Sequence[str]
       ] = types.MappingProxyType({}),
@@ -154,7 +154,7 @@ class FormativeMemoriesInitializer(
       pre_act_label: str = '',
   ):
     """A component that generates a backstory for each player entity.
-    
+
     As this is an initializer, it should only be called once per episode. To
     achieve this, it returns the name of the next game master once it finishes.
     The idea is to use one game master (with this component) for initialization,
@@ -232,15 +232,13 @@ class FormativeMemoriesInitializer(
         memory = self.get_entity().get_component(
             self._memory_component_key, type_=memory_component.Memory
         )
-        for shared_memory in self._shared_memories:
-          memory.add(shared_memory)
+        memory.add(self._shared_memories)
         make_observation = self.get_entity().get_component(
             self._make_observation_component_key,
             type_=make_observation_component.MakeObservation,
         )
         for player_name in self._player_names:
-          for shared_memory in self._shared_memories:
-            make_observation.add_to_queue(player_name, shared_memory)
+          make_observation.add_to_queue(player_name, self._shared_memories)
           episodes = self.generate_backstory_episodes(player_name)
           for episode in episodes:
             make_observation.add_to_queue(player_name, episode)
@@ -266,7 +264,7 @@ class FormativeMemoriesInitializer(
     prompt.statement("Question: What is the protagonist's name?")
     prompt.statement(f'Answer: {active_entity_name}\n')
     prompt.statement('Question: Describe the setting or background.')
-    shared_memories = '\n'.join(self._shared_memories)
+    shared_memories = self._shared_memories
     prompt.statement(f'Answer: {shared_memories}\n')
 
     player_specific_context = '\n'.join(

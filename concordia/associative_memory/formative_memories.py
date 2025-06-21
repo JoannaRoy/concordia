@@ -120,7 +120,7 @@ class FormativeMemoryFactory:
       *,
       model: language_model.LanguageModel,
       embedder: Callable[[str], np.ndarray],
-      shared_memories: Sequence[str] = (),
+      shared_memories: str = '',
       delimiter_symbol: str = '***',
       current_date: datetime.datetime | None = None,
   ):
@@ -140,6 +140,8 @@ class FormativeMemoryFactory:
     self._blank_memory_factory_call = MemoryFactory(
         embedder=embedder).make_blank_memory
     self._shared_memories = shared_memories
+    print("SHARED MEMORIES", shared_memories)
+    breakpoint()
     self._current_date = current_date
 
   def make_backstory(self, agent_config: AgentConfig) -> str:
@@ -156,7 +158,9 @@ class FormativeMemoryFactory:
     prompt.statement('Question: What is the protagonist\'s name?')
     prompt.statement(f'Answer: {agent_config.name}\n')
     prompt.statement('Question: Describe the setting or background.')
-    shared_memories = '\n'.join(self._shared_memories)
+    shared_memories = self._shared_memories
+    print("SHARED MEMORIES", shared_memories)
+    breakpoint()
     prompt.statement(f'Answer: {shared_memories}\n')
 
     question = (
@@ -295,8 +299,7 @@ class FormativeMemoryFactory:
 
     mem = self._blank_memory_factory_call()
     # All players share generic memories.
-    for item in self._shared_memories:
-      mem.add(item)
+    mem.add(self._shared_memories)
 
     context = agent_config.context
     if agent_config.goal:

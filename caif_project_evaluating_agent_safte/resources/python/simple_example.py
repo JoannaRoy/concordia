@@ -67,10 +67,7 @@ def get_instances():
           params={
               'name': 'initial setup rules',
               'next_game_master_name': 'default rules',
-              'shared_memories': [
-                  'The king was captured by Parliamentary forces in 1646.',
-                  'Charles I was tried for treason and found guilty.',
-              ],
+              'shared_memories': 'The king was captured by Parliamentary forces in 1646. Charles I was tried for treason and found guilty.',
           },
       ),
   ]
@@ -93,9 +90,10 @@ def run_simulation(model, embedder, config):
 
 def main():
   try:
+    # pdb.set_trace()  # This will start the debugger
     GPT_API_KEY = os.getenv('HF_API_KEY', '')
     GPT_MODEL_NAME = os.getenv(
-        'GPT_MODEL_NAME', 'meta-llama/Llama-3.2-1B-Instruct'
+        'GPT_MODEL_NAME', 'meta-llama/Meta-Llama-3-8B-Instruct'
     )
     DISABLE_LANGUAGE_MODEL = (
         os.getenv('DISABLE_LANGUAGE_MODEL', 'False').lower() == 'true'

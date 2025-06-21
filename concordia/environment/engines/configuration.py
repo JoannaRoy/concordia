@@ -209,7 +209,7 @@ class Configuration:
             'name': 'initial setup rules',
             'next_game_master_name': 'default rules',
             # Comma-separated list of shared memories.
-            'shared_memories': [shared_memories],
+            'shared_memories': shared_memories,
         },
     )
 
