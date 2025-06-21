@@ -393,6 +393,17 @@ class NextActionSpec(
           max_tokens=1024,
           terminators=())
 
+    # Post-process to fix common formatting issues
+    if result and 'type:' in result:
+      # Fix single semicolon to double semicolon
+      if ';;' not in result:
+        result = result.replace(';type:', ';;type:')
+      # Fix missing space after type:
+      if 'type:free' in result:
+        result = result.replace('type:free', 'type: free')
+      elif 'type:choice' in result:
+        result = result.replace('type:choice', 'type: choice')
+
     return result
 
 
