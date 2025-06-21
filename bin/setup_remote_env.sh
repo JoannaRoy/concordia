@@ -46,6 +46,9 @@ if [[ "$HELP" == true ]]; then
     exit 0
 fi
 
+git config --global user.email 'joannaroy6@gmail.com'
+git config --global user.name 'Joanna Roy'
+
 rm -rf .venv
 
 ssh-keygen -t ed25519 -C "runpod@runpod.io" -f ~/.ssh/id_ed25519 -N ""
