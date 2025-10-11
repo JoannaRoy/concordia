@@ -58,7 +58,7 @@ class ConcatActComponent(
         the component order must be in the `ComponentContextMapping` passed to
         `get_action_attempt`.
       prefix_entity_name: Whether to prefix the entity name to the output of
-        `get_action_attempt` when the `action_spec` output type is `FREE`. 
+        `get_action_attempt` when the `action_spec` output type is `FREE`.
       randomize_choices: Whether to randomize the choices in the
         `get_action_attempt` when the `action_spec` output type is `CHOICE`.
 
@@ -113,13 +113,24 @@ class ConcatActComponent(
       output = ''
       if self._prefix_entity_name:
         output = self.get_entity().name + ' '
-      output += prompt.open_question(
-          call_to_action,
+      # output += prompt.open_question(
+      #     call_to_action,
+      #     max_tokens=2200,
+      #     answer_prefix=output,
+      #     terminators=(),
+      #     question_label='Exercise',
+      # )
+
+      # ===== HAF integration =====
+      output += prompt.decision_question(
+          question=call_to_action,
+          agent_name=self.get_entity().name,
+          action_spec=action_spec,
           max_tokens=2200,
           answer_prefix=output,
-          terminators=(),
-          question_label='Exercise',
       )
+      # ============================
+
       self._log(output, prompt)
       return output
     elif action_spec.output_type in entity_lib.CHOICE_ACTION_TYPES:

@@ -22,6 +22,8 @@ import re
 
 from concordia.document import document
 from concordia.language_model import language_model
+from concordia.language_model import huggingface_model
+from concordia.typing import entity as entity_lib
 import numpy as np
 
 DEFAULT_MAX_CHARACTERS = 200
@@ -190,6 +192,94 @@ class InteractiveDocument(document.Document):
       )
     else:
       response = forced_response
+    response = response.removeprefix(answer_prefix)
+    self._model_response(response)
+    self._response(f'{answer_suffix}\n')
+    return response
+
+  def decision_question(
+      self,
+      question: str,
+      *,
+      agent_name: str,
+      action_spec: entity_lib.ActionSpec,
+      current_time_str: str | None = None,
+      forced_response: str | None = None,
+      answer_prefix: str = '',
+      answer_suffix: str = '',
+      max_tokens: int = DEFAULT_MAX_TOKENS,
+      terminators: Collection[str] = ('\n',),
+      temperature: float = language_model.DEFAULT_TEMPERATURE,
+      top_p: float = language_model.DEFAULT_TOP_P,
+      top_k: int = language_model.DEFAULT_TOP_K,
+      question_label: str = 'Question',
+      answer_label: str = 'Answer',
+  ) -> str:
+    """Asks a decision question with HAF integration and appends it to the document.
+
+    This method works like open_question but also executes the HAF (Human-Aligned
+    Faithfulness) evaluation pipeline which includes:
+    1. Justify Stage: Generates decision with reasons
+    2. Uphold Reasons Stage: Evaluates if reasons are complete
+    3. Uphold Stance Stage: Evaluates if each reason is individually sufficient
+
+    Args:
+      question: the question to ask.
+      agent_name: name of the agent making the decision.
+      action_spec: specification for the action to be taken.
+      current_time_str: current timestamp as string (defaults to agent_name if not provided).
+      forced_response: forces the document to provide this response. The LLM
+        will not be consulted. If answer_prefix is in the forced response then
+        remove it.
+      answer_prefix: a prefix to append to the model's prompt.
+      answer_suffix: a suffix to append to the model's response.
+      max_tokens: the maximum number of tokens to sample from the model.
+      terminators: strings that must not be present in the model's response. If
+        emitted by the model the response will be truncated before them.
+      temperature: the temperature to use for sampling.
+      top_p: filters tokens based on cumulative probability, considering the
+        most probable tokens until the sum of their probabilities reaches top_p.
+      top_k: filters tokens by selecting the top_k most probable tokens.
+      question_label: the label to use for the question, typically "Question".
+      answer_label: the label to use for the answer, typically "Answer".
+
+    Returns:
+      The agents truncated response (or `forced_response` is provided).
+
+    Raises:
+      TypeError: If the model is not a HuggingFaceLanguageModel (required for HAF).
+    """
+    if not isinstance(self._model, huggingface_model.HuggingFaceLanguageModel):
+      raise TypeError(
+          'decision_question requires a HuggingFaceLanguageModel for HAF integration. '
+          f'Got {type(self._model).__name__} instead.'
+      )
+
+    if current_time_str is None:
+      current_time_str = agent_name
+
+    self._question(f'{question_label}: {question}\n')
+    self._response(f'{answer_label}: {answer_prefix}')
+
+    if forced_response is None:
+      from concordia.haf_integration.haf_wrapper import HAFWrapper
+
+      general_guidance_text = self._model_view.text()
+
+      haf_wrapper = HAFWrapper(
+          agent_name=agent_name,
+          current_time_str=current_time_str,
+          action_spec=action_spec,
+          general_guidance_text=general_guidance_text,
+          model=self._model,
+      )
+
+      justify_result = haf_wrapper.run()
+      response = justify_result['Returned Action String']
+      response = response.removeprefix(answer_prefix)
+    else:
+      response = forced_response
+
     response = response.removeprefix(answer_prefix)
     self._model_response(response)
     self._response(f'{answer_suffix}\n')
