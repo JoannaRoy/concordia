@@ -1,34 +1,31 @@
-import datetime
 import numpy as np
 import sys
 import os
+
+os.environ['HF_HUB_ENABLE_HF_TRANSFER'] = '0'
+
 import sentence_transformers
-from concordia.clocks import game_clock
-from concordia.language_model import huggingface_model
-from concordia.language_model import no_language_model
+from concordia.language_model import gpt_model, no_language_model, huggingface_model
 from concordia.prefabs.simulation import generic as simulation
 import concordia.prefabs.entity as entity_prefabs
 import concordia.prefabs.game_master as game_master_prefabs
 from concordia.typing import prefab as prefab_lib
 from concordia.utils import helper_functions
-import torch
 
 
-def setup_language_model(api_key, model_name, disable_model=False, device=0):
-  torch.cuda.empty_cache()
-  if not disable_model:
-    return huggingface_model.HuggingFaceLanguageModel(
-        api_key=api_key, model_name=model_name, device=device, load_in_8bit=True
-    )
-  return no_language_model.NoLanguageModel()
+def setup_language_model(api_key, model_name, model_type, disable_model=False):
+  if not disable_model and model_type == "openai":
+    return gpt_model.GptLanguageModel(api_key=api_key, model_name=model_name)
+  elif not disable_model and model_type == "huggingface":
+    return huggingface_model.HuggingFaceLanguageModel(api_key=api_key, model_name=model_name)
+  else:
+    return no_language_model.NoLanguageModel()
 
 
-def setup_embedder(disable_model=False):
+def setup_embedder(model_name, disable_model=False):
   if disable_model:
     return np.ones(3)
-  st_model = sentence_transformers.SentenceTransformer(
-      'sentence-transformers/all-mpnet-base-v2'
-  )
+  st_model = sentence_transformers.SentenceTransformer(model_name)
   return lambda x: st_model.encode(x, show_progress_bar=False)
 
 def get_prefabs():
@@ -86,37 +83,27 @@ def create_simulation_config():
     )
 
 def run_simulation(model, embedder, config):
-  # January 29, 1649 (simulation starts at 12:00 PM)
-  clock = game_clock.FixedIntervalClock(
-        start=datetime.datetime(1649, 1, 29, 12, 0, 0),
-        step_size=datetime.timedelta(minutes=30),
-    )
   runnable_simulation = simulation.Simulation(
       config=config,
       model=model,
       embedder=embedder,
-      clock=clock,
   )
   return runnable_simulation.play()
 
 def main():
   try:
-    # pdb.set_trace()  # This will start the debugger
-    GPT_API_KEY = os.getenv('HF_API_KEY')
-    GPT_MODEL_NAME = os.getenv(
-        'GPT_MODEL_NAME', 'meta-llama/Llama-3.1-8B-Instruct'
-    )
-    DISABLE_LANGUAGE_MODEL = (
-        os.getenv('DISABLE_LANGUAGE_MODEL', 'False').lower() == 'true'
-    )
+    GPT_API_KEY = ""
+    GPT_MODEL_NAME = "meta-llama/Llama-3.1-8B-Instruct"
+    EMBEDDER_MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
+    MODEL_TYPE = "huggingface"
 
     print('Initializing language model...', file=sys.stderr)
     model = setup_language_model(
-        GPT_API_KEY, GPT_MODEL_NAME, DISABLE_LANGUAGE_MODEL, device=0
+        GPT_API_KEY, GPT_MODEL_NAME, MODEL_TYPE, GPT_MODEL_NAME == ""
     )
 
     print('Setting up embedder...', file=sys.stderr)
-    embedder = setup_embedder(DISABLE_LANGUAGE_MODEL)
+    embedder = setup_embedder(EMBEDDER_MODEL_NAME, EMBEDDER_MODEL_NAME == "")
 
     print('Creating simulation config...', file=sys.stderr)
     config = create_simulation_config()
