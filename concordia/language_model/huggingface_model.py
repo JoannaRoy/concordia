@@ -76,6 +76,16 @@ class HuggingFaceLanguageModel(language_model.LanguageModel):
         dtype=torch.float16,
     )
 
+  @property
+  def tokenizer(self) -> AutoTokenizer:
+    """Returns the tokenizer instance."""
+    return self._tokenizer
+
+  @property
+  def device(self) -> torch.device:
+    """Returns the device the model is on."""
+    return self._model.device
+
   @override
   def sample_text(
       self,
