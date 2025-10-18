@@ -72,6 +72,8 @@ class HuggingFaceLanguageModel(language_model.LanguageModel):
         model_name,
         token=api_key,
         trust_remote_code=True,
+        device_map="auto",
+        dtype=torch.float16,
     )
 
   @override

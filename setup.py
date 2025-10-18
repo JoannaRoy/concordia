@@ -104,6 +104,7 @@ setuptools.setup(
         ],
         'huggingface': [
             'torch',
+            'accelerate',
         ],
         'vllm': [
             'vllm',
